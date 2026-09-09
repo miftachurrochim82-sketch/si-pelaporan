@@ -1,0 +1,288 @@
+<!-- ============================================================
+     A8_MasterData.html — Master Data Referensi SIMPEG (SI-PELAPORAN)
+     Port dari SI-KOMPETENSI: tab Kompetensi dihapus (bukan domain
+     aplikasi ini), tersisa 3 tab read-only SIMPEG:
+     Pegawai | Jabatan | Unit Kerja.
+     Data dimuat sekali di initApp (loadReferensi); pencarian &
+     paginasi murni sisi klien.
+     ============================================================ -->
+<div v-if="currentPage === 'master_data'" class="space-y-6">
+
+  <!-- Header Halaman -->
+  <div class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+    <div>
+      <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs uppercase tracking-wider">
+        <i class="fa-solid fa-database"></i>
+        <span>Pusat Data System</span>
+      </div>
+      <h2 class="text-xl font-extrabold text-slate-900 dark:text-white mt-1">Master Data & Referensi SIMPEG</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Pantau data entitas pegawai, jabatan, dan unit kerja terintegrasi.</p>
+    </div>
+  </div>
+
+  <!-- Tab Navigasi Master Data (Pill Bar Style) -->
+  <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+
+    <!-- Tab 1: Pegawai Referensi -->
+    <button @click="activeMasterTab = 'pegawai'"
+            :class="[
+              'px-4 py-2.5 rounded-2xl font-bold text-xs transition-all duration-200 flex items-center gap-2 shrink-0 border',
+              activeMasterTab === 'pegawai'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700'
+            ]">
+      <i class="fa-solid fa-users text-sm"></i>
+      <span>Pegawai (SIMPEG)</span>
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold"
+            :class="activeMasterTab === 'pegawai' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'">
+        {{ (pegawaiList && pegawaiList.length) || 0 }}
+      </span>
+    </button>
+
+    <!-- Tab 2: Jabatan Referensi -->
+    <button @click="activeMasterTab = 'jabatan'"
+            :class="[
+              'px-4 py-2.5 rounded-2xl font-bold text-xs transition-all duration-200 flex items-center gap-2 shrink-0 border',
+              activeMasterTab === 'jabatan'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700'
+            ]">
+      <i class="fa-solid fa-briefcase text-sm"></i>
+      <span>Jabatan (SIMPEG)</span>
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold"
+            :class="activeMasterTab === 'jabatan' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'">
+        {{ (jabatanList && jabatanList.length) || 0 }}
+      </span>
+    </button>
+
+    <!-- Tab 3: Unit Kerja Referensi -->
+    <button @click="activeMasterTab = 'unit'"
+            :class="[
+              'px-4 py-2.5 rounded-2xl font-bold text-xs transition-all duration-200 flex items-center gap-2 shrink-0 border',
+              activeMasterTab === 'unit'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700'
+            ]">
+      <i class="fa-solid fa-building text-sm"></i>
+      <span>Unit Kerja (SIMPEG)</span>
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold"
+            :class="activeMasterTab === 'unit' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'">
+        {{ (unitList && unitList.length) || 0 }}
+      </span>
+    </button>
+
+  </div>
+
+  <!-- ====================================================================
+       TAB 1: REFERENSI PEGAWAI (SIMPEG READ-ONLY)
+       ==================================================================== -->
+  <div v-if="activeMasterTab === 'pegawai'" class="space-y-4">
+
+    <!-- Info Read-Only SIMPEG Banner -->
+    <div class="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center gap-3 text-xs text-amber-800 dark:text-amber-300">
+      <i class="fa-solid fa-lock text-sm shrink-0"></i>
+      <span>Data pegawai disinkronkan secara read-only dari database <strong>SIMPEG Pemkab Trenggalek</strong>.</span>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="p-4 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <div class="relative w-full sm:w-64">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input v-model="pegawaiSearch" @input="loadPegawai(1)" placeholder="Cari NIP / Nama Pegawai..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500/50 focus:outline-none transition" />
+        </div>
+        <button @click="resetPegawaiFilter" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-semibold shrink-0">
+          Reset
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <button @click="exportPegawaiExcel" class="px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 text-xs font-semibold flex items-center gap-1.5">
+          <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel
+        </button>
+        <button @click="exportPegawaiPDF" class="px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200/60 text-xs font-semibold flex items-center gap-1.5">
+          <i class="fa-solid fa-file-pdf text-rose-600"></i> PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Table Pegawai -->
+    <div class="rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-700/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <th class="py-3.5 px-4 w-12 text-center">No</th>
+              <th class="py-3.5 px-4">NIP</th>
+              <th class="py-3.5 px-4">Nama Lengkap</th>
+              <th class="py-3.5 px-4">Email</th>
+              <th class="py-3.5 px-4">Unit Kerja</th>
+              <th class="py-3.5 px-4">Jabatan</th>
+              <th class="py-3.5 px-4">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+            <tr v-if="!paginatedPegawaiReferensi.length">
+              <td colspan="7" class="py-10 text-center text-slate-400">
+                <i class="fa-solid fa-inbox text-2xl mb-2 block"></i> Tidak ada data pegawai ditemukan.
+              </td>
+            </tr>
+            <tr v-for="(p, index) in paginatedPegawaiReferensi" :key="p.pegawai_id" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+              <td class="py-3.5 px-4 text-center font-bold text-slate-400">{{ (pegawaiRefPage - 1) * pageSize + index + 1 }}</td>
+              <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">{{ p.nip || '-' }}</td>
+              <td class="py-3.5 px-4 font-bold text-slate-900 dark:text-white">{{ p.nama || '-' }}</td>
+              <td class="py-3.5 px-4 text-slate-500 dark:text-slate-400">{{ p.email || '-' }}</td>
+              <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300">{{ namaUnit(p.unit_id) }}</td>
+              <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300">{{ namaJabatan(p.jabatan_id) }}</td>
+              <td class="py-3.5 px-4">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60">
+                  {{ p.status || 'AKTIF' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination controls -->
+      <div class="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
+        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+          Halaman <span class="font-bold text-slate-800 dark:text-white">{{ pegawaiRefPage }}</span> dari <span class="font-bold text-slate-800 dark:text-white">{{ pegawaiRefTotalPages }}</span>
+        </span>
+        <div class="flex items-center gap-1.5">
+          <button @click="loadPegawai(pegawaiRefPage - 1)" :disabled="pegawaiRefPage <= 1" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-40 transition">Prev</button>
+          <button @click="loadPegawai(pegawaiRefPage + 1)" :disabled="pegawaiRefPage >= pegawaiRefTotalPages" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-40 transition">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       TAB 2: REFERENSI JABATAN (SIMPEG READ-ONLY)
+       ==================================================================== -->
+  <div v-if="activeMasterTab === 'jabatan'" class="space-y-4">
+
+    <!-- Filter Bar -->
+    <div class="p-4 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm flex items-center gap-2">
+      <div class="relative w-full sm:w-64">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input v-model="jabatanSearch" @input="loadJabatan(1)" placeholder="Cari Kode / Nama Jabatan..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500/50 focus:outline-none transition" />
+      </div>
+      <button @click="resetJabatanFilter" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold shrink-0">Reset</button>
+    </div>
+
+    <!-- Table Jabatan -->
+    <div class="rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-700/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <th class="py-3.5 px-4 w-12 text-center">No</th>
+              <th class="py-3.5 px-4">Kode</th>
+              <th class="py-3.5 px-4">Nama Jabatan</th>
+              <th class="py-3.5 px-4">Unit Kerja</th>
+              <th class="py-3.5 px-4">Jenis Jabatan</th>
+              <th class="py-3.5 px-4">Status Formasi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+            <tr v-if="!paginatedJabatanReferensi.length">
+              <td colspan="6" class="py-10 text-center text-slate-400">
+                <i class="fa-solid fa-inbox text-2xl mb-2 block"></i> Tidak ada data jabatan ditemukan.
+              </td>
+            </tr>
+            <tr v-for="(j, index) in paginatedJabatanReferensi" :key="j.jabatan_id" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+              <td class="py-3.5 px-4 text-center font-bold text-slate-400">{{ (jabatanRefPage - 1) * pageSize + index + 1 }}</td>
+              <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">{{ j.kode_jabatan || '-' }}</td>
+              <td class="py-3.5 px-4 font-bold text-slate-900 dark:text-white">{{ j.nama_jabatan || '-' }}</td>
+              <td class="py-3.5 px-4 text-slate-600 dark:text-slate-300">{{ namaUnit(j.unit_id) }}</td>
+              <td class="py-3.5 px-4 text-slate-500 dark:text-slate-400">{{ j.jenis_jabatan || '-' }}</td>
+              <td class="py-3.5 px-4">
+                <span :class="[
+                  'px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border',
+                  j.status_jabatan === 'DEFINITIF' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800' :
+                  j.status_jabatan === 'PLT' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800' : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+                ]">
+                  {{ j.status_jabatan || 'DEFINITIF' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Jabatan -->
+      <div class="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
+        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+          Halaman <span class="font-bold text-slate-800 dark:text-white">{{ jabatanRefPage }}</span> dari <span class="font-bold text-slate-800 dark:text-white">{{ jabatanRefTotalPages }}</span>
+        </span>
+        <div class="flex items-center gap-1.5">
+          <button @click="loadJabatan(jabatanRefPage - 1)" :disabled="jabatanRefPage <= 1" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-40 transition">Prev</button>
+          <button @click="loadJabatan(jabatanRefPage + 1)" :disabled="jabatanRefPage >= jabatanRefTotalPages" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-40 transition">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       TAB 3: REFERENSI UNIT KERJA (SIMPEG READ-ONLY)
+       ==================================================================== -->
+  <div v-if="activeMasterTab === 'unit'" class="space-y-4">
+
+    <!-- Filter Bar -->
+    <div class="p-4 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm flex items-center gap-2">
+      <div class="relative w-full sm:w-64">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input v-model="unitSearch" @input="loadUnit(1)" placeholder="Cari Kode / Nama Unit..." class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500/50 focus:outline-none transition" />
+      </div>
+      <button @click="resetUnitFilter" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold shrink-0">Reset</button>
+    </div>
+
+    <!-- Table Unit -->
+    <div class="rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-700/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <th class="py-3.5 px-4 w-12 text-center">No</th>
+              <th class="py-3.5 px-4">Kode Unit</th>
+              <th class="py-3.5 px-4">Nama Unit Kerja</th>
+              <th class="py-3.5 px-4">Jenis Unit</th>
+              <th class="py-3.5 px-4">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+            <tr v-if="!paginatedUnitReferensi.length">
+              <td colspan="5" class="py-10 text-center text-slate-400">
+                <i class="fa-solid fa-inbox text-2xl mb-2 block"></i> Tidak ada data unit ditemukan.
+              </td>
+            </tr>
+            <tr v-for="(u, index) in paginatedUnitReferensi" :key="u.unit_id" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+              <td class="py-3.5 px-4 text-center font-bold text-slate-400">{{ (unitRefPage - 1) * pageSize + index + 1 }}</td>
+              <td class="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">{{ u.kode_unit || '-' }}</td>
+              <td class="py-3.5 px-4 font-bold text-slate-900 dark:text-white">{{ u.nama_unit || '-' }}</td>
+              <td class="py-3.5 px-4 text-slate-500 dark:text-slate-400">{{ u.jenis_unit || '-' }}</td>
+              <td class="py-3.5 px-4">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300">
+                  {{ u.status || 'AKTIF' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Unit -->
+      <div class="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between">
+        <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+          Halaman <span class="font-bold text-slate-800 dark:text-white">{{ unitRefPage }}</span> dari <span class="font-bold text-slate-800 dark:text-white">{{ unitRefTotalPages }}</span>
+        </span>
+        <div class="flex items-center gap-1.5">
+          <button @click="loadUnit(unitRefPage - 1)" :disabled="unitRefPage <= 1" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-40 transition">Prev</button>
+          <button @click="loadUnit(unitRefPage + 1)" :disabled="unitRefPage >= unitRefTotalPages" class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 disabled:opacity-40 transition">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

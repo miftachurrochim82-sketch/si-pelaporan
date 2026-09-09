@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SI-PELAPORAN — Pemkab Trenggalek</title>
+
+  <!-- Dark Mode Pre-paint Script (Anti-Flicker) -->
+  <script>
+    try {
+      if (localStorage.getItem('sipelaporan_dark') === 'true') {
+        document.documentElement.classList.add('dark');
+      }
+    } catch(e) {}
+  </script>
+
+  <!-- CDN Dependencies -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+  <!-- Library Fitur Opsional (Chart.js, SheetJS & jsPDF) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- 1. FRONTEND CDN SHARED CSS (v2.2.5) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.2.5/frontend/app-common.min.css">
+</head>
+<body>
+  <div id="app" v-cloak>
+    <!-- ===== 1. LAYAR LOGIN SSO ===== -->
+    <app-login v-if="!token"
+               :is-processing="isProcessing"
+               :error-message="errorMessage"
+               :app-title="appTitle"
+               :app-subtitle="'Sistem Informasi Pelaporan Pegawai Terintegrasi SIMPEG'"
+               :instansi="'Pemerintah Kabupaten Trenggalek'"
+               @login="goToPlatform">
+    </app-login>
+
+    <!-- ===== 2. SHELL UTAMA APLIKASI ===== -->
+    <div v-if="token" class="flex h-screen overflow-hidden bg-slate-100 dark:bg-slate-900">
+      <!-- Sidebar Navigasi -->
+      <app-sidebar :collapsed="sidebarCollapsed"
+                   :mobile-open="sidebarMobileOpen"
+                   :dark="isDarkMode"
+                   :current-page="currentPage"
+                   :is-admin="isAdmin"
+                   :user="currentUser"
+                   :brand="brand"
+                   :menu="menu"
+                   @navigate="navigateTo"
+                   @toggle="toggleSidebar"
+                   @close="sidebarMobileOpen = false"
+                   @logout="logout">
+      </app-sidebar>
+
+      <!-- Area Konten Utama -->
+      <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <!-- Header Universal -->
+        <div class="px-4 sm:px-6 pt-4 shrink-0">
+          <app-header :dark="isDarkMode"
+                      :app-title="appTitle"
+                      :current-page="currentPage"
+                      :page-icons="pageIcons"
+                      :user="currentUser"
+                      @toggle-dark="toggleDarkMode"
+                      @toggle-mobile="sidebarMobileOpen = !sidebarMobileOpen"
+                      @navigate="navigateTo">
+          </app-header>
+        </div>
+
+        <!-- Konten Halaman Modular -->
+        <main class="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-6">
+
+          <!-- Partial Halaman A4: Dashboard -->
+          <?!= include('A4_Dashboard'); ?>
+
+          <!-- Partial Halaman A5: Pelaporan -->
+          <?!= include('A5_Pelaporan'); ?>
+
+          <!-- Partial Halaman A6: Analisa -->
+          <?!= include('A6_Analisa'); ?>
+
+          <!-- Partial Halaman A8: Master Data (Referensi SIMPEG) -->
+          <?!= include('A8_MasterData'); ?>
+
+          <!-- Modul Mandiri CDN: Profil SIMPEG -->
+          <app-profile v-if="currentPage === 'profil'"></app-profile>
+
+          <!-- Modul Mandiri CDN: Pengaturan Sistem (Admin) -->
+          <app-settings v-if="currentPage === 'pengaturan' && isAdmin"></app-settings>
+
+        </main>
+      </div>
+    </div>
+
+    <!-- Toast Notifications Universal -->
+    <div class="toast-container">
+      <div v-for="t in toasts" :key="t.id" class="toast-item" :class="'toast-'+t.type">
+        <span class="flex-1">{{ t.message }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. FRONTEND CDN SHARED JAVASCRIPT (v2.2.5) -->
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.2.5/frontend/app-components.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.2.5/frontend/app-modules.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.2.5/frontend/app-core.min.js"></script>
+
+  <!-- Inisialisasi SI-PELAPORAN via AppCore -->
+  <script>
+    /* =========================================================
+       Mixin khas SI-PELAPORAN: data & method halaman lokal.
+       Auth/shell/toast/callServer disediakan AppCore.
+       ========================================================= */
+    const SIPelaporanMixin = {
+      data() {
+        return {
+          // Modal Panduan Aplikasi (pengganti menu Tentang)
+          showPanduan: false,
+
+          // Dashboard & referensi SIMPEG
+          dashboardData: {},
+          pegawaiList: [],
+          unitList: [],
+          jabatanList: [],
+          _chartPegawaiUnit: null,
+          _chartStatusJabatan: null,
+
+          // Jenis laporan (selaras config jenis_laporan_list di setupApp)
+          jenisLaporanList: ['rutin', 'insidental', 'khusus', 'pengawasan'],
+
+          // Pelaporan (CRUD entitas PELAPORAN)
+          pelaporanList: [],
+          pelaporanPage: 1,
+          pelaporanTotalPages: 1,
+          pelaporanTotalData: 0,
+          pelaporanSearch: '',
+          pelaporanFilterStatus: '',
+          pelaporanFilterPegawai: '',
+          pelaporanFilterJenis: '',
+          pelaporanLoading: false,
+          pelaporanSaving: false,
+          showPelaporanForm: false,
+          pelaporanForm: {
+            id: '',
+            pegawai_id: '',
+            tanggal: '',
+            jenis_laporan: 'rutin',
+            judul: '',
+            isi: ''
+          },
+
+          // Analisa
+          analisaData: null,
+          analisaLoading: false,
+          analisaTahun: '',
+          analisaBulan: '',
+          tahunList: [],
+          bulanList: [],
+
+          // Master Data referensi (tab)
+          activeMasterTab: 'pegawai',
+          pegawaiSearch: '',
+          unitSearch: '',
+          jabatanSearch: '',
+          pegawaiRefPage: 1,
+          unitRefPage: 1,
+          jabatanRefPage: 1,
+        };
+      },
+
+      computed: {
+        filteredPegawaiReferensi() {
+          const q = String(this.pegawaiSearch || '').toLowerCase().trim();
+          if (!q) return this.pegawaiList || [];
+          return (this.pegawaiList || []).filter(p =>
+            String(p.nip || '').toLowerCase().includes(q) ||
+            String(p.nama || '').toLowerCase().includes(q) ||
+            String(p.email || '').toLowerCase().includes(q)
+          );
+        },
+        filteredUnitReferensi() {
+          const q = String(this.unitSearch || '').toLowerCase().trim();
+          if (!q) return this.unitList || [];
+          return (this.unitList || []).filter(u =>
+            String(u.kode_unit || '').toLowerCase().includes(q) ||
+            String(u.nama_unit || '').toLowerCase().includes(q)
+          );
+        },
+        filteredJabatanReferensi() {
+          const q = String(this.jabatanSearch || '').toLowerCase().trim();
+          if (!q) return this.jabatanList || [];
+          return (this.jabatanList || []).filter(j =>
+            String(j.kode_jabatan || '').toLowerCase().includes(q) ||
+            String(j.nama_jabatan || '').toLowerCase().includes(q)
+          );
+        },
+        paginatedPegawaiReferensi() {
+          const start = (this.pegawaiRefPage - 1) * this.pageSize;
+          return this.filteredPegawaiReferensi.slice(start, start + this.pageSize);
+        },
+        paginatedUnitReferensi() {
+          const start = (this.unitRefPage - 1) * this.pageSize;
+          return this.filteredUnitReferensi.slice(start, start + this.pageSize);
+        },
+        paginatedJabatanReferensi() {
+          const start = (this.jabatanRefPage - 1) * this.pageSize;
+          return this.filteredJabatanReferensi.slice(start, start + this.pageSize);
+        },
+        pegawaiRefTotalPages() {
+          return Math.max(1, Math.ceil(this.filteredPegawaiReferensi.length / this.pageSize));
+        },
+        unitRefTotalPages() {
+          return Math.max(1, Math.ceil(this.filteredUnitReferensi.length / this.pageSize));
+        },
+        jabatanRefTotalPages() {
+          return Math.max(1, Math.ceil(this.filteredJabatanReferensi.length / this.pageSize));
+        },
+        pegawaiPerUnitTop() {
+          const counts = {};
+          (this.pegawaiList || []).forEach(p => {
+            const uid = String(p.unit_id || 'tanpa_unit');
+            counts[uid] = (counts[uid] || 0) + 1;
+          });
+          return Object.keys(counts)
+            .map(uid => ({
+              nama_unit: uid === 'tanpa_unit' ? '(Tanpa Unit)' : this.namaUnit(uid),
+              jumlah: counts[uid]
+            }))
+            .sort((a, b) => b.jumlah - a.jumlah)
+            .slice(0, 5);
+        },
+        unitTanpaPegawai() {
+          const filled = {};
+          (this.pegawaiList || []).forEach(p => { filled[String(p.unit_id || '')] = true; });
+          return (this.unitList || []).filter(u => !filled[String(u.unit_id)]).length;
+        },
+        jabatanAktif() {
+          return (this.jabatanList || []).filter(j =>
+            String(j.status_jabatan || 'DEFINITIF').toUpperCase() !== 'KOSONG'
+          ).length;
+        }
+      },
+
+      methods: {
+        // ================= REFERENSI =================
+        async loadReferensi() {
+          try {
+            const [pegawaiRes, unitRes, jabatanRes] = await Promise.all([
+              this.callServer('get_pegawai_list'),
+              this.callServer('get_unit_list'),
+              this.callServer('get_jabatan_list')
+            ]);
+            if (pegawaiRes && pegawaiRes.success) this.pegawaiList = Array.isArray(pegawaiRes.data) ? pegawaiRes.data : [];
+            else this.showToast('Gagal memuat data pegawai: ' + ((pegawaiRes && pegawaiRes.error) || ''), 'error');
+            if (unitRes && unitRes.success) this.unitList = Array.isArray(unitRes.data) ? unitRes.data : [];
+            else this.showToast('Gagal memuat data unit kerja: ' + ((unitRes && unitRes.error) || ''), 'error');
+            if (jabatanRes && jabatanRes.success) this.jabatanList = Array.isArray(jabatanRes.data) ? jabatanRes.data : [];
+            else this.showToast('Gagal memuat data jabatan: ' + ((jabatanRes && jabatanRes.error) || ''), 'error');
+          } catch (e) {
+            console.error('[loadReferensi] Error:', e);
+            this.showToast('Gagal memuat data referensi: ' + e.message, 'error');
+          }
+        },
+
+        // ================= DASHBOARD =================
+        async loadDashboard() {
+          this.loading = true;
+          try {
+            const res = await this.callServer('dashboard');
+            if (res.success) this.dashboardData = res.data || {};
+            else this.showToast(res.error || 'Gagal memuat data dashboard', 'error');
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async refreshDashboard() {
+          await this.loadDashboard();
+          await this.loadReferensi();
+          await this.loadAnalisa();
+          this.renderDashboardCharts();
+          this.showToast('Dashboard diperbarui');
+        },
+
+        renderDashboardCharts() {
+          this.$nextTick(() => {
+            if (typeof Chart === 'undefined') return;
+            const isDark = this.isDarkMode;
+            const textColor = isDark ? '#cbd5e1' : '#334155';
+            const gridColor = isDark ? 'rgba(51, 65, 85, 0.4)' : 'rgba(226, 232, 240, 0.8)';
+
+            const ctx1 = document.getElementById('chartPegawaiUnit');
+            if (ctx1) {
+              if (this._chartPegawaiUnit) this._chartPegawaiUnit.destroy();
+              const counts = {};
+              (this.pegawaiList || []).forEach(p => {
+                const uid = String(p.unit_id || 'tanpa_unit');
+                counts[uid] = (counts[uid] || 0) + 1;
+              });
+              const top = Object.keys(counts)
+                .map(uid => ({ nama: uid === 'tanpa_unit' ? '(Tanpa Unit)' : this.namaUnit(uid), jumlah: counts[uid] }))
+                .sort((a, b) => b.jumlah - a.jumlah)
+                .slice(0, 10);
+
+              this._chartPegawaiUnit = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                  labels: top.map(t => t.nama),
+                  datasets: [{
+                    label: 'Jumlah Pegawai',
+                    data: top.map(t => t.jumlah),
+                    backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                    borderRadius: 8
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  scales: {
+                    x: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor } }
+                  },
+                  plugins: { legend: { display: false } }
+                }
+              });
+            }
+
+            const ctx2 = document.getElementById('chartStatusJabatan');
+            if (ctx2) {
+              if (this._chartStatusJabatan) this._chartStatusJabatan.destroy();
+              let definitif = 0, plt = 0, kosong = 0;
+              (this.jabatanList || []).forEach(j => {
+                const s = String(j.status_jabatan || 'DEFINITIF').toUpperCase();
+                if (s === 'PLT') plt++;
+                else if (s === 'KOSONG') kosong++;
+                else definitif++;
+              });
+
+              this._chartStatusJabatan = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                  labels: ['DEFINITIF', 'PLT', 'KOSONG'],
+                  datasets: [{
+                    data: [definitif, plt, kosong],
+                    backgroundColor: ['#10b981', '#f59e0b', '#f43f5e'],
+                    borderWidth: 2,
+                    borderColor: isDark ? '#0f172a' : '#ffffff'
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { position: 'bottom', labels: { color: textColor, font: { weight: 'bold', size: 10 } } }
+                  }
+                }
+              });
+            }
+          });
+        },
+
+        // ================= PELAPORAN (CRUD) =================
+        async loadPelaporan(page = 1) {
+          this.pelaporanPage = page;
+          this.pelaporanLoading = true;
+          try {
+            const res = await this.callServer('get_pelaporan_list', {
+              page,
+              limit: this.pageSize,
+              search: this.pelaporanSearch,
+              filters: {
+                status: this.pelaporanFilterStatus,
+                pegawai_id: this.pelaporanFilterPegawai,
+                jenis_laporan: this.pelaporanFilterJenis
+              }
+            });
+            if (res && res.success) {
+              this.pelaporanList = Array.isArray(res.data) ? res.data : [];
+              this.pelaporanTotalPages = (res.meta && res.meta.total_pages) || 1;
+              this.pelaporanTotalData = (res.meta && res.meta.total) || this.pelaporanList.length;
+            } else {
+              this.pelaporanList = [];
+              this.showToast((res && res.error) || 'Gagal memuat data pelaporan', 'error');
+            }
+          } catch (e) {
+            this.pelaporanList = [];
+            this.showToast('Gagal memuat pelaporan: ' + e.message, 'error');
+          } finally {
+            this.pelaporanLoading = false;
+          }
+        },
+
+        openPelaporanForm(item = null) {
+          if (item) {
+            const trimT = (v) => String(v || '').includes('T') ? String(v).slice(0, 10) : (v || '');
+            this.pelaporanForm = Object.assign({}, item, { tanggal: trimT(item.tanggal) });
+          } else {
+            this.pelaporanForm = {
+              id: '',
+              pegawai_id: (this.currentUser && this.currentUser.pegawai_id) || '',
+              tanggal: this.todayIso_(),
+              jenis_laporan: 'rutin',
+              judul: '',
+              isi: ''
+            };
+          }
+          this.showPelaporanForm = true;
+        },
+
+        async savePelaporan() {
+          this.pelaporanSaving = true;
+          try {
+            const res = await this.callServer('save_pelaporan', { record: this.pelaporanForm });
+            if (res.success) {
+              this.showPelaporanForm = false;
+              await this.loadPelaporan(this.pelaporanPage);
+              await this.loadDashboard();
+              this.showToast('Pelaporan berhasil disimpan');
+            } else {
+              this.showToast(res.error || 'Gagal menyimpan pelaporan', 'error');
+            }
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          } finally {
+            this.pelaporanSaving = false;
+          }
+        },
+
+        async deletePelaporan(item) {
+          if (!confirm(`Hapus pelaporan "${item.judul || item.id}"?`)) return;
+          try {
+            const res = await this.callServer('delete_pelaporan', { id: item.id });
+            if (res.success) {
+              await this.loadPelaporan(this.pelaporanPage);
+              if (!this.pelaporanList.length && this.pelaporanPage > 1) {
+                await this.loadPelaporan(this.pelaporanPage - 1);
+              }
+              await this.loadDashboard();
+              this.showToast('Pelaporan berhasil dihapus');
+            } else {
+              this.showToast(res.error || 'Gagal menghapus pelaporan', 'error');
+            }
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
+        },
+
+        async verifikasiPelaporan(item, status) {
+          const wajib = status === 'revisi' || status === 'ditolak';
+          const catatan = prompt(
+            status === 'disetujui' ? 'Catatan persetujuan (opsional):' :
+            status === 'revisi' ? 'Catatan revisi (wajib diisi):' : 'Catatan penolakan (wajib diisi):', '');
+          if (catatan === null) return;
+          if (wajib && !String(catatan).trim()) {
+            this.showToast('Catatan ' + status + ' wajib diisi', 'error');
+            return;
+          }
+          try {
+            const res = await this.callServer('verifikasi_pelaporan', {
+              id: item.id,
+              status: status,
+              catatan_verifikator: catatan || ''
+            });
+            if (res.success) {
+              await this.loadPelaporan(this.pelaporanPage);
+              this.showToast('Pelaporan ' + status);
+            } else {
+              this.showToast(res.error || 'Gagal verifikasi', 'error');
+            }
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          }
+        },
+
+        resetPelaporanFilter() {
+          this.pelaporanFilterStatus = '';
+          this.pelaporanFilterPegawai = '';
+          this.pelaporanFilterJenis = '';
+          this.pelaporanSearch = '';
+          this.loadPelaporan(1);
+        },
+
+        exportPelaporanExcel() {
+          if (typeof XLSX === 'undefined') { this.showToast('Library Excel tidak termuat', 'error'); return; }
+          const ws = XLSX.utils.json_to_sheet(this.pelaporanList);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Data Pelaporan');
+          XLSX.writeFile(wb, `Data_Pelaporan_${this.todayIso_()}.xlsx`);
+        },
+
+        exportPelaporanPDF() {
+          if (typeof jspdf === 'undefined' || !jspdf.jsPDF) { this.showToast('Library PDF tidak termuat', 'error'); return; }
+          const { jsPDF } = jspdf;
+          const doc = new jsPDF();
+          doc.autoTable({
+            head: [['No', 'Tanggal', 'Judul', 'Jenis', 'Pegawai', 'Status']],
+            body: (this.pelaporanList || []).map((item, i) => [
+              i + 1,
+              this.formatDateDisplay(item.tanggal),
+              item.judul,
+              item.jenis_laporan,
+              this.namaPegawai(item.pegawai_id),
+              item.status || 'menunggu'
+            ])
+          });
+          doc.save(`Data_Pelaporan_${this.todayIso_()}.pdf`);
+        },
+
+        // ================= PAGINATION HELPER REFERENSI =================
+        loadPegawai(page) { this.pegawaiRefPage = page; },
+        resetPegawaiFilter() { this.pegawaiSearch = ''; this.pegawaiRefPage = 1; },
+        exportPegawaiExcel() {
+          if (typeof XLSX === 'undefined') { this.showToast('Library Excel tidak termuat', 'error'); return; }
+          const ws = XLSX.utils.json_to_sheet(this.pegawaiList);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Pegawai');
+          XLSX.writeFile(wb, `Data_Pegawai_${this.todayIso_()}.xlsx`);
+        },
+        exportPegawaiPDF() {
+          if (typeof jspdf === 'undefined' || !jspdf.jsPDF) { this.showToast('Library PDF tidak termuat', 'error'); return; }
+          const { jsPDF } = jspdf;
+          const doc = new jsPDF();
+          doc.autoTable({
+            head: [['No', 'NIP', 'Nama', 'Email', 'Unit']],
+            body: (this.pegawaiList || []).map((p, i) => [i + 1, p.nip, p.nama, p.email, this.namaUnit(p.unit_id)])
+          });
+          doc.save(`Data_Pegawai_${this.todayIso_()}.pdf`);
+        },
+        loadJabatan(page) { this.jabatanRefPage = page; },
+        resetJabatanFilter() { this.jabatanSearch = ''; this.jabatanRefPage = 1; },
+        loadUnit(page) { this.unitRefPage = page; },
+        resetUnitFilter() { this.unitSearch = ''; this.unitRefPage = 1; },
+
+        // ================= ANALISA =================
+        async loadAnalisa() {
+          this.analisaLoading = true;
+          try {
+            const res = await this.callServer('analytics', { tahun: this.analisaTahun, bulan: this.analisaBulan });
+            if (res && res.success) this.analisaData = res.data || {};
+            else this.showToast((res && res.error) || 'Gagal memuat analisa', 'error');
+          } catch (e) {
+            this.showToast(e.message, 'error');
+          } finally {
+            this.analisaLoading = false;
+          }
+        },
+
+        downloadAnalisaPDF() {
+          if (typeof jspdf === 'undefined' || !jspdf.jsPDF) { this.showToast('Library PDF tidak termuat', 'error'); return; }
+          const { jsPDF } = jspdf;
+          const doc = new jsPDF();
+          const a = this.analisaData || {};
+          doc.setFontSize(14);
+          doc.text('Analisa Pelaporan Pegawai', 14, 16);
+          doc.setFontSize(10);
+          const ringkas = doc.splitTextToSize(String(a.ringkasan || '-'), 180);
+          doc.text(ringkas, 14, 24);
+          let y = 24 + ringkas.length * 5 + 4;
+          const byJenis = a.by_jenis || {};
+          doc.autoTable({ startY: y, head: [['Jenis Laporan', 'Jumlah']], body: Object.keys(byJenis).map(k => [k, byJenis[k]]) });
+          y = doc.lastAutoTable.finalY + 6;
+          const temuan = (a.temuan || []).map(t => `[${t.level}] ${t.pesan}`);
+          const rekom = (a.rekomendasi || []).map(r => `[${r.prioritas}] ${r.tindakan}`);
+          doc.autoTable({ startY: y, head: [['Temuan']], body: temuan.map(t => [t]) });
+          y = doc.lastAutoTable.finalY + 6;
+          doc.autoTable({ startY: y, head: [['Rekomendasi']], body: rekom.map(r => [r]) });
+          doc.save(`Analisa_Pelaporan_${this.todayIso_()}.pdf`);
+        },
+
+        // ================= LOOKUP HELPER =================
+        namaPegawai(id) {
+          if (!Array.isArray(this.pegawaiList) || !id) return '-';
+          const p = this.pegawaiList.find(item => String(item.pegawai_id) === String(id));
+          return p ? p.nama : id;
+        },
+        namaUnit(id) {
+          if (!Array.isArray(this.unitList) || !id) return '-';
+          const u = this.unitList.find(item => String(item.unit_id) === String(id));
+          return u ? u.nama_unit : id;
+        },
+        namaJabatan(id) {
+          if (!Array.isArray(this.jabatanList) || !id) return '-';
+          const j = this.jabatanList.find(item => String(item.jabatan_id) === String(id));
+          return j ? j.nama_jabatan : id;
+        }
+      },
+
+      created() {
+        const now = new Date().getFullYear();
+        this.tahunList = [now, now - 1, now - 2, now - 3, now - 4];
+        this.bulanList = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+          'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+      }
+    };
+
+    /* =========================================================
+       Bootstrap aplikasi via AppCore (app-core.js dari CDN)
+       ========================================================= */
+    const app = AppCore.create({
+      appTitle: 'SI-PELAPORAN',
+      storagePrefix: 'sipelaporan',
+      initialPage: 'dashboard',
+
+      // TODO: ganti dengan URL exec SI-Platform Anda
+      platformUrl: 'https://script.google.com/macros/s/AKfycbwh_OUVqmxLcuF81FHmPZtT33Wrm8Ce9Da1SQ3hfkSr7gM5P8ofyAlHSgW40mq3eo-PoQ/exec',
+
+      brand: {
+        title: 'SI-PELAPORAN',
+        subtitle: 'Pemkab Trenggalek',
+        logoChar: 'P',
+        logoIcon: 'fa-solid fa-file-lines',
+        logoSvg: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120' width='100' height='120'%3E%3Cpath d='M50 5 L90 25 V65 C90 90 50 115 50 115 C50 115 10 90 10 65 V25 Z' fill='%231e3a8a' stroke='%23f59e0b' stroke-width='4'/%3E%3Cpath d='M50 15 L80 32 V62 C80 82 50 102 50 102 C50 102 20 82 20 62 V32 Z' fill='%23047857'/%3E%3Ccircle cx='50' cy='55' r='18' fill='%23fbbf24'/%3E%3Cpath d='M50 40 L54 50 L64 50 L56 56 L59 66 L50 60 L41 66 L44 56 L36 50 L46 50 Z' fill='%23dc2626'/%3E%3Ctext x='50' y='93' font-family='Arial, sans-serif' font-size='9' font-weight='bold' fill='%23ffffff' text-anchor='middle'%3ETRENGGALEK%3E%3C/text%3E%3C/svg%3E"
+      },
+
+      menu: [
+        { name: 'Utama', items: [
+          { id: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-gauge-high' },
+          { id: 'pelaporan', label: 'Pelaporan', icon: 'fa-solid fa-file-lines' },
+          { id: 'analisa', label: 'Analisa Pelaporan', icon: 'fa-solid fa-chart-pie' }
+        ]},
+        { name: 'Manajemen Data', items: [
+          { id: 'profil', label: 'Profil Saya', icon: 'fa-solid fa-user-tie' },
+          { id: 'master_data', label: 'Master Data', icon: 'fa-solid fa-database' }
+        ]},
+        { name: 'Sistem', items: [
+          { id: 'pengaturan', label: 'Pengaturan', icon: 'fa-solid fa-gear', adminOnly: true }
+        ]}
+      ],
+
+      pageIcons: {
+        dashboard: 'fa-solid fa-gauge-high',
+        pelaporan: 'fa-solid fa-file-lines',
+        analisa: 'fa-solid fa-chart-pie',
+        profil: 'fa-solid fa-user-tie',
+        master_data: 'fa-solid fa-database',
+        pengaturan: 'fa-solid fa-gear'
+      },
+
+      onNavigate(vm, page) {
+        if (page === 'dashboard') {
+          vm.renderDashboardCharts();
+        } else if (page === 'pelaporan') {
+          vm.loadPelaporan(1);
+          vm.loadedPages['pelaporan'] = true;
+        } else if (page === 'master_data') {
+          vm.loadedPages['master_data'] = true;
+        } else if (page === 'analisa' && !vm.loadedPages['analisa']) {
+          vm.loadAnalisa();
+          vm.loadedPages['analisa'] = true;
+        }
+      },
+
+      onDarkToggle(vm) {
+        if (vm.currentPage === 'dashboard') vm.renderDashboardCharts();
+      },
+
+      async initApp(vm) {
+        if (vm.dataLoaded) return;
+        await vm.loadDashboard();
+        await vm.loadReferensi();
+        await vm.loadAnalisa();
+        vm.renderDashboardCharts();
+      },
+
+      mixins: [SIPelaporanMixin]
+    });
+
+    app.mount('#app');
+  </script>
+</body>
+</html>

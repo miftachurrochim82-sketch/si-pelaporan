@@ -1,0 +1,27 @@
+{
+  "name": "@miftachurrochim82/si-pelaporan",
+  "version": "1.0.0",
+  "description": "Sistem Informasi Pelaporan Pegawai Terintegrasi SIMPEG (Pemkab Trenggalek)",
+  "scripts": {
+    "push": "clasp push",
+    "pull": "clasp pull",
+    "deploy": "clasp deploy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miftachurrochim82-sketch/si-pelaporan.git"
+  },
+  "keywords": [
+    "google-apps-script",
+    "vue3",
+    "tailwind",
+    "simpeg",
+    "trenggalek",
+    "si-pelaporan"
+  ],
+  "author": "miftachurrochim82-sketch",
+  "license": "MIT",
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  }
+}

@@ -1,0 +1,437 @@
+<!-- ============================================================
+     A4_Dashboard.html — Dashboard Utama SI-PELAPORAN
+     Backend kawan: apiDashboard_ mengirim
+     { total_pelaporan, jenis_count, tanggal_count, terbaru[],
+       total_pegawai, total_unit, total_jabatan }.
+     Breakdown jenis = jenis_laporan: rutin/insidental/khusus/pengawasan
+     (selaras config jenis_laporan_list di setupApp).
+     ============================================================ -->
+<div v-if="currentPage === 'dashboard'" class="space-y-6">
+
+  <!-- Skeleton / Spinner Loading Dashboard -->
+  <div v-if="loading && !dataLoaded" class="min-h-[400px] flex flex-col items-center justify-center space-y-4">
+    <div class="relative flex items-center justify-center">
+      <div class="w-12 h-12 rounded-full border-4 border-emerald-200 dark:border-emerald-950 border-t-emerald-600 animate-spin"></div>
+      <i class="fa-solid fa-gauge-high text-sm text-emerald-600 dark:text-emerald-400 absolute"></i>
+    </div>
+    <p class="text-sm font-semibold text-slate-500 dark:text-slate-400 animate-pulse">Memuat statistik & grafik dashboard...</p>
+  </div>
+
+  <template v-else>
+
+    <!-- Welcome Banner & Quick Action Header -->
+    <div class="p-5 rounded-3xl bg-gradient-to-r from-emerald-700 via-teal-700 to-slate-800 text-white shadow-xl relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <!-- Decorative Background Icon -->
+      <i class="fa-solid fa-file-lines absolute -right-6 -bottom-8 text-9xl text-white/10 pointer-events-none"></i>
+
+      <div class="relative z-10">
+        <div class="flex items-center gap-2 text-emerald-200 text-xs font-semibold uppercase tracking-wider mb-1">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Pemerintah Kabupaten Trenggalek</span>
+        </div>
+        <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight">
+          Selamat Datang, {{ (currentUser || {}).display_name || 'Pegawai' }}! 👋
+        </h1>
+        <p class="text-xs sm:text-sm text-emerald-100/90 mt-1 max-w-xl">
+          Pantau pelaporan pegawai, distribusi personel, dan peta jabatan instansi secara real-time.
+        </p>
+      </div>
+
+      <div class="relative z-10 flex flex-wrap items-center gap-2.5 shrink-0">
+        <button @click="showPanduan = true"
+                class="bg-white text-emerald-700 hover:bg-emerald-50 active:scale-95 font-bold px-4 py-2.5 rounded-2xl text-xs transition-all duration-200 flex items-center gap-2 shadow-lg">
+          <i class="fa-solid fa-circle-question"></i>
+          <span>Panduan Aplikasi</span>
+        </button>
+        <button @click="refreshDashboard"
+                class="bg-white/10 hover:bg-white/20 active:scale-95 text-white border border-white/20 font-semibold px-4 py-2.5 rounded-2xl text-xs backdrop-blur-md transition-all duration-200 flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-arrows-rotate" :class="{ 'animate-spin': loading }"></i>
+          <span>Refresh Data</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 1. Kartu Statistik Utama (4 Column KPI) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+      <!-- Card 1: Total Pelaporan -->
+      <div class="p-5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between group">
+        <div>
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Pelaporan</p>
+          <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{{ dashboardData?.total_pelaporan ?? 0 }}</h3>
+          <span class="inline-flex items-center text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-2 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/40">
+            <i class="fa-solid fa-file-lines mr-1"></i> Laporan Masuk
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-file-circle-check"></i>
+        </div>
+      </div>
+
+      <!-- Card 2: Total Pegawai -->
+      <div class="p-5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between group">
+        <div>
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Pegawai Terdaftar</p>
+          <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{{ dashboardData?.total_pegawai ?? (pegawaiList && pegawaiList.length) ?? 0 }}</h3>
+          <span class="inline-flex items-center text-[10px] font-bold text-sky-600 dark:text-sky-400 mt-2 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-full border border-sky-200/60 dark:border-sky-800/40">
+            <i class="fa-solid fa-user-check mr-1"></i> SIMPEG Active
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-950/80 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-users"></i>
+        </div>
+      </div>
+
+      <!-- Card 3: Unit Kerja -->
+      <div class="p-5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between group">
+        <div>
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Unit Kerja Utama</p>
+          <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{{ dashboardData?.total_unit ?? (unitList && unitList.length) ?? 0 }}</h3>
+          <span class="inline-flex items-center text-[10px] font-bold text-purple-600 dark:text-purple-400 mt-2 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200/60 dark:border-purple-800/40">
+            <i class="fa-solid fa-sitemap mr-1"></i> Terstruktur
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-building"></i>
+        </div>
+      </div>
+
+      <!-- Card 4: Jabatan -->
+      <div class="p-5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between group">
+        <div>
+          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Jabatan</p>
+          <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{{ dashboardData?.total_jabatan ?? (jabatanList && jabatanList.length) ?? 0 }}</h3>
+          <span class="inline-flex items-center text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-2 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/40">
+            <i class="fa-solid fa-briefcase mr-1"></i> Formasi Active
+          </span>
+        </div>
+        <div class="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
+          <i class="fa-solid fa-id-card"></i>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 2. Breakdown Ringkasan Jenis Laporan -->
+    <div class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-layer-group text-emerald-600 dark:text-emerald-400"></i>
+          <h2 class="text-sm font-bold text-slate-800 dark:text-white">Rincian Jenis Laporan</h2>
+        </div>
+        <span class="text-[11px] font-semibold text-slate-400">Real-time Count</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Rutin -->
+        <div class="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/40 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Laporan Rutin</p>
+            <p class="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1">{{ dashboardData?.jenis_count?.rutin || 0 }}</p>
+          </div>
+          <div class="p-3 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-xl">
+            <i class="fa-solid fa-calendar-check text-lg"></i>
+          </div>
+        </div>
+
+        <!-- Insidental -->
+        <div class="p-4 rounded-2xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-800/40 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-sky-800 dark:text-sky-300">Laporan Insidental</p>
+            <p class="text-2xl font-black text-sky-700 dark:text-sky-400 mt-1">{{ dashboardData?.jenis_count?.insidental || 0 }}</p>
+          </div>
+          <div class="p-3 bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 rounded-xl">
+            <i class="fa-solid fa-bolt text-lg"></i>
+          </div>
+        </div>
+
+        <!-- Khusus -->
+        <div class="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-800/40 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-amber-800 dark:text-amber-300">Laporan Khusus</p>
+            <p class="text-2xl font-black text-amber-700 dark:text-amber-400 mt-1">{{ dashboardData?.jenis_count?.khusus || 0 }}</p>
+          </div>
+          <div class="p-3 bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-xl">
+            <i class="fa-solid fa-star text-lg"></i>
+          </div>
+        </div>
+
+        <!-- Pengawasan -->
+        <div class="p-4 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-100 dark:border-teal-800/40 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-teal-800 dark:text-teal-300">Laporan Pengawasan</p>
+            <p class="text-2xl font-black text-teal-700 dark:text-teal-400 mt-1">{{ dashboardData?.jenis_count?.pengawasan || 0 }}</p>
+          </div>
+          <div class="p-3 bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300 rounded-xl">
+            <i class="fa-solid fa-binoculars text-lg"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Visualisasi Grafik Analytics Chart.js -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Grafik 1: Bar Chart Pegawai per Unit (Spans 2 Cols) -->
+      <div class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm lg:col-span-2 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-column text-emerald-600 dark:text-emerald-400"></i>
+              Distribusi Pegawai per Unit Kerja (Top 10)
+            </h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Jumlah personel terdaftar berdasarkan unit SIMPEG</p>
+          </div>
+        </div>
+        <div class="h-72 w-full relative">
+          <canvas id="chartPegawaiUnit"></canvas>
+        </div>
+      </div>
+
+      <!-- Grafik 2: Doughnut Status Jabatan (Spans 1 Col) -->
+      <div class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm lg:col-span-1 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-pie text-emerald-600 dark:text-emerald-400"></i>
+              Proporsi Status Jabatan
+            </h3>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Komposisi Definitif, Plt, & Kosong</p>
+          </div>
+        </div>
+        <div class="h-72 w-full relative flex items-center justify-center">
+          <canvas id="chartStatusJabatan"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 4. Widget 5 Laporan Terbaru (server-sorted dari dashboardData.terbaru) -->
+    <div v-if="dashboardData && dashboardData.terbaru && dashboardData.terbaru.length" class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-emerald-600 dark:text-emerald-400"></i>
+            5 Laporan Terbaru
+          </h3>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Pelaporan terakhir yang masuk ke sistem</p>
+        </div>
+        <button @click="navigateTo('pelaporan')" class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
+          Lihat Semua <i class="fa-solid fa-arrow-right ml-1"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2.5">
+        <div v-for="(item, idx) in dashboardData.terbaru" :key="item.id || idx"
+             class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-file-lines text-xs"></i>
+            </div>
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{{ item.judul || '-' }}</p>
+              <p class="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                {{ namaPegawai(item.pegawai_id) }} &bull; {{ formatDateDisplay(item.tanggal) }}
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+              {{ item.jenis_laporan || 'umum' }}
+            </span>
+            <span :class="[
+              'px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border',
+              item.status === 'disetujui' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+              : item.status === 'ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+              : item.status === 'revisi' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+              : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+            ]">
+              {{ item.status || 'menunggu' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Top 5 Unit Kerja Ranking Widget -->
+    <div v-if="pegawaiPerUnitTop && pegawaiPerUnitTop.length > 0" class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-ranking-star text-amber-500"></i>
+            5 Unit Kerja Terbesar (Berdasarkan Jumlah Personel)
+          </h3>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Unit dengan alokasi SDM terbanyak</p>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div v-for="(item, idx) in pegawaiPerUnitTop" :key="idx" class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+          <div class="flex items-center justify-between text-xs font-semibold mb-1.5">
+            <span class="text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 font-bold text-[10px] flex items-center justify-center">
+                {{ idx + 1 }}
+              </span>
+              {{ item.nama_unit }}
+            </span>
+            <span class="text-emerald-600 dark:text-emerald-400 font-bold">{{ item.jumlah }} Pegawai</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+            <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
+                 :style="{ width: Math.min((item.jumlah / ((pegawaiList && pegawaiList.length) || 1)) * 100 * 3, 100) + '%' }"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </template>
+
+  <!-- ===================== MODAL PANDUAN APLIKASI ===================== -->
+  <div v-if="showPanduan" class="fixed inset-0 z-[95] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" @click="showPanduan = false"></div>
+
+    <div class="relative w-full max-w-3xl rounded-3xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/60 shadow-2xl flex flex-col max-h-[90vh]">
+
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 flex items-center justify-between shrink-0 rounded-t-3xl bg-gradient-to-r from-emerald-700 to-teal-700">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-white/15 text-white flex items-center justify-center text-lg shrink-0">
+            <i class="fa-solid fa-circle-question"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold text-white">Panduan Aplikasi SI-PELAPORAN</h3>
+            <p class="text-[11px] text-emerald-100">Pemerintah Kabupaten Trenggalek &bull; Terintegrasi SIMPEG</p>
+          </div>
+        </div>
+        <button @click="showPanduan = false" class="w-9 h-9 rounded-xl flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Body (scrollable) -->
+      <div class="px-6 py-5 overflow-y-auto space-y-6 text-sm">
+
+        <!-- 1. Tentang Aplikasi -->
+        <section class="space-y-2">
+          <h4 class="font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-circle-info text-emerald-600 dark:text-emerald-400"></i> Tentang Aplikasi
+          </h4>
+          <p class="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+            <strong>SI-PELAPORAN</strong> adalah Sistem Informasi Pelaporan Pegawai di lingkungan Pemerintah Kabupaten Trenggalek.
+            Aplikasi ini digunakan untuk mencatat, mengelola, dan memverifikasi laporan pelaksanaan tugas pegawai,
+            dengan data pegawai, jabatan, dan unit kerja yang terintegrasi langsung (read-only) dari <strong>SIMPEG</strong>.
+            Login menggunakan akun resmi melalui <strong>SI-Platform (Single Sign-On)</strong> — tidak ada password terpisah di aplikasi ini.
+          </p>
+        </section>
+
+        <!-- 2. Fitur Utama -->
+        <section class="space-y-2.5">
+          <h4 class="font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-cubes text-emerald-600 dark:text-emerald-400"></i> Fitur Utama
+          </h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-100"><i class="fa-solid fa-gauge-high text-emerald-600 mr-1.5"></i>Dashboard</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Statistik jumlah laporan per jenis, grafik distribusi pegawai, status jabatan, dan 5 laporan terbaru.</p>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-100"><i class="fa-solid fa-file-lines text-emerald-600 mr-1.5"></i>Pelaporan</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Buat, ubah, dan hapus laporan kerja (rutin, insidental, khusus, pengawasan). Dilengkapi verifikasi admin serta ekspor Excel/PDF.</p>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-100"><i class="fa-solid fa-chart-pie text-emerald-600 mr-1.5"></i>Analisa Pelaporan</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Analisa otomatis per tahun/bulan: ringkasan eksekutif, distribusi, temuan, rekomendasi — dapat diunduh sebagai PDF.</p>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-100"><i class="fa-solid fa-user-tie text-emerald-600 mr-1.5"></i>Profil Saya</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Data kepegawaian Anda dari SIMPEG (read-only) + pemeliharaan kontak: alamat, nomor HP, dan email.</p>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-100"><i class="fa-solid fa-database text-emerald-600 mr-1.5"></i>Master Data</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Referensi SIMPEG read-only: pegawai, jabatan, dan unit kerja — dengan pencarian, paginasi, dan ekspor.</p>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-800 dark:text-slate-100"><i class="fa-solid fa-gear text-emerald-600 mr-1.5"></i>Pengaturan <span class="text-[9px] font-bold uppercase bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded ml-1">Admin</span></p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Parameter sistem (mis. daftar jenis laporan) yang dapat diubah administrator tanpa deploy ulang.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Alur Status Verifikasi -->
+        <section class="space-y-2.5">
+          <h4 class="font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-code-branch text-emerald-600 dark:text-emerald-400"></i> Alur Status Laporan
+          </h4>
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 space-y-2.5">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                <i class="fa-solid fa-clock"></i> menunggu
+              </span>
+              <i class="fa-solid fa-arrow-right text-slate-300 text-[10px]"></i>
+              <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
+                <i class="fa-solid fa-circle-check"></i> disetujui
+              </span>
+            </div>
+            <p class="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+              Setiap laporan baru berstatus <b>menunggu</b> dan diverifikasi oleh administrator menjadi salah satu dari:
+            </p>
+            <ul class="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300 space-y-1.5 list-none">
+              <li><span class="font-bold text-emerald-600 dark:text-emerald-400">Disetujui</span> — laporan valid dan diterima.</li>
+              <li><span class="font-bold text-amber-600 dark:text-amber-400">Perlu Revisi</span> — perbaiki sesuai <i>catatan verifikator</i> (muncul di bawah judul laporan), lalu simpan kembali.</li>
+              <li><span class="font-bold text-rose-600 dark:text-rose-400">Ditolak</span> — laporan tidak dapat diterima; alasan tertera pada catatan verifikator.</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- 4. Cara Membuat Laporan -->
+        <section class="space-y-2.5">
+          <h4 class="font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-ol text-emerald-600 dark:text-emerald-400"></i> Cara Membuat Laporan
+          </h4>
+          <ol class="text-xs leading-relaxed text-slate-600 dark:text-slate-300 space-y-2 list-none">
+            <li class="flex gap-2.5"><span class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[10px] flex items-center justify-center shrink-0">1</span>Buka menu <b>Pelaporan</b>, klik tombol <b>Buat Laporan</b>.</li>
+            <li class="flex gap-2.5"><span class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[10px] flex items-center justify-center shrink-0">2</span>Lengkapi form: pegawai (terkunci ke akun Anda), tanggal, jenis laporan, judul, dan uraian lengkap.</li>
+            <li class="flex gap-2.5"><span class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[10px] flex items-center justify-center shrink-0">3</span>Klik <b>Simpan Pelaporan</b> — laporan masuk dengan status <b>menunggu</b>.</li>
+            <li class="flex gap-2.5"><span class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[10px] flex items-center justify-center shrink-0">4</span>Tunggu verifikasi administrator. Bila berstatus <b>revisi</b>, baca catatannya, ubah laporan, lalu simpan kembali.</li>
+            <li class="flex gap-2.5"><span class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[10px] flex items-center justify-center shrink-0">5</span>Gunakan tombol <b>Excel/PDF</b> di halaman Pelaporan untuk mengunduh rekap data.</li>
+          </ol>
+        </section>
+
+        <!-- 5. FAQ -->
+        <section class="space-y-2.5">
+          <h4 class="font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+            <i class="fa-solid fa-circle-question text-emerald-600 dark:text-emerald-400"></i> Tanya Jawab
+          </h4>
+          <div class="space-y-2">
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Mengapa laporan saya masih berstatus "menunggu"?</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Laporan menunggu pemeriksaan administrator. Status hanya dapat diubah melalui proses verifikasi — bukan oleh pelapor.</p>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Mengapa saya hanya bisa mengelola laporan milik sendiri?</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Sistem melindungi kepemilikan data: pegawai hanya dapat mengubah/menghapus laporannya sendiri. Administrator dapat melihat seluruh laporan untuk keperluan verifikasi.</p>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Data pegawai/jabatan/unit saya salah — bagaimana memperbaikinya?</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Data tersebut berasal dari SIMPEG (read-only). Hubungi pengelola kepegawaian/BIKSDM untuk perbaikan di sistem sumber.</p>
+            </div>
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+              <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Sesi saya berakhir / diminta login ulang terus?</p>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Sesi mengikuti tiket SSO SI-Platform. Masuk kembali melalui tombol "Masuk via SI-Platform"; jika berulang, hubungi administrator aplikasi.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Footer info versi -->
+        <section class="pt-4 border-t border-slate-100 dark:border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p class="text-[11px] text-slate-400 dark:text-slate-500">SI-PELAPORAN v1.0.0 &bull; Google Apps Script + Vue 3 &bull; © 2026 Pemkab Trenggalek</p>
+          <button @click="showPanduan = false" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 transition">
+            Mengerti, Tutup
+          </button>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+</div>
