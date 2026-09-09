@@ -78,7 +78,7 @@ function actorPegawaiId_(actor) { return String((actor && actor.pegawai_id) || '
 function findPelaporanById_(id) {
   var target = String(id || '').trim();
   if (!target) return null;
-  var rows = readRecordsNoLock_('PELAPORAN');
+  var rows = getSheetDataCached_('PELAPORAN');
   for (var i = 0; i < rows.length; i++) {
     if (!rows[i].deleted_at && String(rows[i].id || '').trim() === target) return rows[i];
   }
@@ -123,7 +123,7 @@ function apiDashboard_(query, actor) {
     };
 
     // Data pelaporan
-    var dataPelaporan = readRecordsNoLock_('PELAPORAN').filter(function(r) { return !r.deleted_at; });
+    var dataPelaporan = getSheetDataCached_('PELAPORAN').filter(function(r) { return !r.deleted_at; });
     if (dataPelaporan && dataPelaporan.length > 0) {
       dashboardData.total_pelaporan = dataPelaporan.length;
       dataPelaporan.forEach(function(item) {
@@ -178,7 +178,7 @@ function getAnalytics_(query, actor) {
     var temuan = [];
     var rekomendasi = [];
 
-    var dataPelaporan = readRecordsNoLock_('PELAPORAN').filter(function(p) { return !p.deleted_at; });
+    var dataPelaporan = getSheetDataCached_('PELAPORAN').filter(function(p) { return !p.deleted_at; });
     if (fTahun) dataPelaporan = dataPelaporan.filter(function(p) { return String(p.tanggal || '').slice(0, 4) === fTahun; });
     if (fBulan) dataPelaporan = dataPelaporan.filter(function(p) { return parseInt(String(p.tanggal || '').slice(5, 7), 10) === fBulan; });
 
@@ -271,7 +271,7 @@ function localPreSaveHook_(canonical, record) {
 function getPelaporanList_(data, actor) {
   data = data || {};
   try {
-    var rows = readRecordsNoLock_('PELAPORAN').filter(function(row) { return !row.deleted_at; });
+    var rows = getSheetDataCached_('PELAPORAN').filter(function(row) { return !row.deleted_at; });
 
     // Filter
     var filters = data.filters || data;

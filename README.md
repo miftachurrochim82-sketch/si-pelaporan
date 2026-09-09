@@ -11,7 +11,7 @@ Aplikasi web modular berbasis **Google Apps Script (GAS)**, **Vue 3**, dan **Tai
 |---|---|---|
 | **App Code** | `SIPELAPORAN` | Kode identitas aplikasi di ekosistem Pemkab Trenggalek |
 | **Backend Library** | `CoreLib` (`1GmeYflfMpRa1iTVgFHRD6K1DMoxc9OoKqpuucPJXgNZ9XBK06O7wgDkO`) | Global Core Foundation v2.0 |
-| **Frontend CDN** | `frontend-cdn@v2.3.0` | Shared UI Components, Modules, AppCore & SIMPEG Cache |
+| **Frontend CDN** | `frontend-cdn@v2.4.0` | Shared UI Components, Modules, High-Performance Core & SWR Cache |
 | **Runtime** | `V8` | Modern JavaScript Engine |
 | **TimeZone** | `Asia/Jakarta` | WIB (Waktu Indonesia Barat) |
 

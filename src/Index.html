@@ -15,6 +15,14 @@
     } catch(e) {}
   </script>
 
+  <!-- Resource Pre-connect & DNS Prefetch Hints -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+
   <!-- CDN Dependencies -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: 'class' };</script>
@@ -22,14 +30,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
-  <!-- Library Fitur Opsional (Chart.js, SheetJS & jsPDF) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-  <!-- 1. FRONTEND CDN SHARED CSS (v2.3.0) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.3.0/frontend/app-common.min.css">
+  <!-- 1. FRONTEND CDN SHARED CSS (v2.4.0) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.4.0/frontend/app-common.min.css">
 </head>
 <body>
   <div id="app" v-cloak>
@@ -108,16 +110,16 @@
     </div>
   </div>
 
-  <!-- 2. FRONTEND CDN SHARED JAVASCRIPT (v2.3.0) -->
-  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.3.0/frontend/app-components.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.3.0/frontend/app-modules.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.3.0/frontend/app-core.min.js"></script>
+  <!-- 2. FRONTEND CDN SHARED JAVASCRIPT (v2.4.0 High-Performance Core) -->
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.4.0/frontend/app-components.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.4.0/frontend/app-modules.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.4.0/frontend/app-core.min.js"></script>
 
   <!-- Inisialisasi SI-PELAPORAN via AppCore -->
   <script>
     /* =========================================================
        Mixin khas SI-PELAPORAN: data & method halaman lokal.
-       Auth/shell/toast/callServer/SIMPEG Lookups/Exporters disediakan AppCore v2.3.0.
+       Auth/shell/toast/callServer/SIMPEG SWR Cache/Exporters disediakan AppCore v2.4.0.
        ========================================================= */
     const SIPelaporanMixin = {
       data() {
@@ -250,7 +252,7 @@
       },
 
       methods: {
-        // ================= REFERENSI (SIMPEG CACHE v2.3.0) =================
+        // ================= REFERENSI (SWR CACHE v2.4.0) =================
         async loadReferensi(force = false) {
           try {
             await this.loadMasterSIMPEG(force);
@@ -275,14 +277,19 @@
         },
 
         async refreshDashboard() {
-          await this.loadDashboard();
-          await this.loadReferensi(true);
-          await this.loadAnalisa();
-          this.renderDashboardCharts();
+          await Promise.all([
+            this.loadDashboard(),
+            this.loadReferensi(true),
+            this.loadAnalisa()
+          ]);
+          await this.renderDashboardCharts();
           this.showToast('Dashboard diperbarui');
         },
 
-        renderDashboardCharts() {
+        async renderDashboardCharts() {
+          const hasChart = await this.ensureChartLibrary();
+          if (!hasChart) return;
+
           this.$nextTick(() => {
             if (typeof Chart === 'undefined') return;
             const isDark = this.isDarkMode;
@@ -413,8 +420,10 @@
             const res = await this.callServer('save_pelaporan', { record: this.pelaporanForm });
             if (res.success) {
               this.showPelaporanForm = false;
-              await this.loadPelaporan(this.pelaporanPage);
-              await this.loadDashboard();
+              await Promise.all([
+                this.loadPelaporan(this.pelaporanPage),
+                this.loadDashboard()
+              ]);
               this.showToast('Pelaporan berhasil disimpan');
             } else {
               this.showToast(res.error || 'Gagal menyimpan pelaporan', 'error');
@@ -539,8 +548,12 @@
           }
         },
 
-        downloadAnalisaPDF() {
-          if (typeof jspdf === 'undefined' || !jspdf.jsPDF) { this.showToast('Library PDF tidak termuat', 'error'); return; }
+        async downloadAnalisaPDF() {
+          if (typeof jspdf === 'undefined' || !jspdf.jsPDF) {
+            this.showToast('Memuat modul PDF...', 'info');
+            await AppCore.loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+            await AppCore.loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+          }
           const { jsPDF } = jspdf;
           const doc = new jsPDF();
           const a = this.analisaData || {};
@@ -633,9 +646,11 @@
 
       async initApp(vm) {
         if (vm.dataLoaded) return;
-        await vm.loadDashboard();
-        await vm.loadReferensi();
-        await vm.loadAnalisa();
+        await Promise.all([
+          vm.loadDashboard(),
+          vm.loadReferensi(),
+          vm.loadAnalisa()
+        ]);
         vm.renderDashboardCharts();
       },
 
