@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Sistem Informasi Pelaporan Pegawai Terintegrasi SIMPEG (Pemkab Trenggalek)",
   "scripts": {
+    "clasp:set": "node scripts/set-script-id.js",
     "push": "clasp push",
     "pull": "clasp pull",
     "deploy": "clasp deploy",
