@@ -50,10 +50,10 @@ function include(filename) {
 function handleAction(payload) {
   var cfg = getAppConfig_();
   cfg.preSaveHook = localPreSaveHook_;
+  if (cfg.resources && cfg.resources.pelaporan && cfg.resources.pelaporan.hooks) {
+    cfg.resources.pelaporan.hooks.preSave = localPreSaveHook_;
+  }
   cfg.localHandlers = {
-    'get_pelaporan_list': typeof getPelaporanList_ === 'function' ? getPelaporanList_ : null,
-    'save_pelaporan': typeof savePelaporanHandler_ === 'function' ? savePelaporanHandler_ : null,
-    'delete_pelaporan': typeof deletePelaporanHandler_ === 'function' ? deletePelaporanHandler_ : null,
     'verifikasi_pelaporan': typeof verifikasiPelaporanHandler_ === 'function' ? verifikasiPelaporanHandler_ : null,
     'dashboard': typeof apiDashboard_ === 'function' ? apiDashboard_ : null,
     'analytics': typeof getAnalytics_ === 'function' ? getAnalytics_ : null,

@@ -144,6 +144,19 @@ function getAppConfig_() {
     actionLevels: { save_my_profile: 'viewer', get_config: 'admin', verifikasi_pelaporan: 'admin' },
     entityPermissions: {},
     isRefSheetFunc: isReferenceSheet_,
+    resources: {
+      pelaporan: {
+        sheetName: 'PELAPORAN',
+        pk: 'id',
+        ownerField: 'pegawai_id',
+        searchFields: ['judul', 'isi', 'jenis_laporan', 'tanggal', 'pegawai_id'],
+        defaultSort: { field: 'tanggal', order: 'desc' },
+        roles: { read: 'viewer', create: 'user', update: 'user', delete: 'user' },
+        hooks: {
+          preSave: typeof localPreSaveHook_ === 'function' ? localPreSaveHook_ : null
+        }
+      }
+    },
     localHandlers: {}   // diisi file router: { nama_aksi: function(data, currentUser) {...} }
   };
 }
