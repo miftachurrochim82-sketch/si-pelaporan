@@ -28,8 +28,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
-  <!-- 1. FRONTEND CDN SHARED CSS (v2.2.5) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.2.5/frontend/app-common.min.css">
+  <!-- 1. FRONTEND CDN SHARED CSS (v2.3.0) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.3.0/frontend/app-common.min.css">
 </head>
 <body>
   <div id="app" v-cloak>
@@ -108,16 +108,16 @@
     </div>
   </div>
 
-  <!-- 2. FRONTEND CDN SHARED JAVASCRIPT (v2.2.5) -->
-  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.2.5/frontend/app-components.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.2.5/frontend/app-modules.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.2.5/frontend/app-core.min.js"></script>
+  <!-- 2. FRONTEND CDN SHARED JAVASCRIPT (v2.3.0) -->
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.3.0/frontend/app-components.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.3.0/frontend/app-modules.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.3.0/frontend/app-core.min.js"></script>
 
   <!-- Inisialisasi SI-PELAPORAN via AppCore -->
   <script>
     /* =========================================================
        Mixin khas SI-PELAPORAN: data & method halaman lokal.
-       Auth/shell/toast/callServer disediakan AppCore.
+       Auth/shell/toast/callServer/SIMPEG Lookups/Exporters disediakan AppCore v2.3.0.
        ========================================================= */
     const SIPelaporanMixin = {
       data() {
@@ -250,20 +250,10 @@
       },
 
       methods: {
-        // ================= REFERENSI =================
-        async loadReferensi() {
+        // ================= REFERENSI (SIMPEG CACHE v2.3.0) =================
+        async loadReferensi(force = false) {
           try {
-            const [pegawaiRes, unitRes, jabatanRes] = await Promise.all([
-              this.callServer('get_pegawai_list'),
-              this.callServer('get_unit_list'),
-              this.callServer('get_jabatan_list')
-            ]);
-            if (pegawaiRes && pegawaiRes.success) this.pegawaiList = Array.isArray(pegawaiRes.data) ? pegawaiRes.data : [];
-            else this.showToast('Gagal memuat data pegawai: ' + ((pegawaiRes && pegawaiRes.error) || ''), 'error');
-            if (unitRes && unitRes.success) this.unitList = Array.isArray(unitRes.data) ? unitRes.data : [];
-            else this.showToast('Gagal memuat data unit kerja: ' + ((unitRes && unitRes.error) || ''), 'error');
-            if (jabatanRes && jabatanRes.success) this.jabatanList = Array.isArray(jabatanRes.data) ? jabatanRes.data : [];
-            else this.showToast('Gagal memuat data jabatan: ' + ((jabatanRes && jabatanRes.error) || ''), 'error');
+            await this.loadMasterSIMPEG(force);
           } catch (e) {
             console.error('[loadReferensi] Error:', e);
             this.showToast('Gagal memuat data referensi: ' + e.message, 'error');
@@ -286,7 +276,7 @@
 
         async refreshDashboard() {
           await this.loadDashboard();
-          await this.loadReferensi();
+          await this.loadReferensi(true);
           await this.loadAnalisa();
           this.renderDashboardCharts();
           this.showToast('Dashboard diperbarui');
@@ -491,50 +481,44 @@
         },
 
         exportPelaporanExcel() {
-          if (typeof XLSX === 'undefined') { this.showToast('Library Excel tidak termuat', 'error'); return; }
-          const ws = XLSX.utils.json_to_sheet(this.pelaporanList);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, 'Data Pelaporan');
-          XLSX.writeFile(wb, `Data_Pelaporan_${this.todayIso_()}.xlsx`);
+          this.exportExcel(this.pelaporanList, `Data_Pelaporan_${this.todayIso_()}`, 'Data Pelaporan');
         },
 
         exportPelaporanPDF() {
-          if (typeof jspdf === 'undefined' || !jspdf.jsPDF) { this.showToast('Library PDF tidak termuat', 'error'); return; }
-          const { jsPDF } = jspdf;
-          const doc = new jsPDF();
-          doc.autoTable({
-            head: [['No', 'Tanggal', 'Judul', 'Jenis', 'Pegawai', 'Status']],
-            body: (this.pelaporanList || []).map((item, i) => [
-              i + 1,
-              this.formatDateDisplay(item.tanggal),
-              item.judul,
-              item.jenis_laporan,
-              this.namaPegawai(item.pegawai_id),
-              item.status || 'menunggu'
-            ])
-          });
-          doc.save(`Data_Pelaporan_${this.todayIso_()}.pdf`);
+          this.exportPDF(
+            [
+              { header: 'No', field: (row, i) => i + 1 },
+              { header: 'Tanggal', field: row => this.formatDateDisplay(row.tanggal) },
+              { header: 'Judul', key: 'judul' },
+              { header: 'Jenis', key: 'jenis_laporan' },
+              { header: 'Pegawai', field: row => this.namaPegawai(row.pegawai_id) },
+              { header: 'Status', field: row => row.status || 'menunggu' }
+            ],
+            this.pelaporanList,
+            `Data_Pelaporan_${this.todayIso_()}`,
+            'Daftar Pelaporan Pegawai'
+          );
         },
 
         // ================= PAGINATION HELPER REFERENSI =================
         loadPegawai(page) { this.pegawaiRefPage = page; },
         resetPegawaiFilter() { this.pegawaiSearch = ''; this.pegawaiRefPage = 1; },
         exportPegawaiExcel() {
-          if (typeof XLSX === 'undefined') { this.showToast('Library Excel tidak termuat', 'error'); return; }
-          const ws = XLSX.utils.json_to_sheet(this.pegawaiList);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, 'Pegawai');
-          XLSX.writeFile(wb, `Data_Pegawai_${this.todayIso_()}.xlsx`);
+          this.exportExcel(this.pegawaiList, `Data_Pegawai_${this.todayIso_()}`, 'Pegawai');
         },
         exportPegawaiPDF() {
-          if (typeof jspdf === 'undefined' || !jspdf.jsPDF) { this.showToast('Library PDF tidak termuat', 'error'); return; }
-          const { jsPDF } = jspdf;
-          const doc = new jsPDF();
-          doc.autoTable({
-            head: [['No', 'NIP', 'Nama', 'Email', 'Unit']],
-            body: (this.pegawaiList || []).map((p, i) => [i + 1, p.nip, p.nama, p.email, this.namaUnit(p.unit_id)])
-          });
-          doc.save(`Data_Pegawai_${this.todayIso_()}.pdf`);
+          this.exportPDF(
+            [
+              { header: 'No', field: (p, i) => i + 1 },
+              { header: 'NIP', key: 'nip' },
+              { header: 'Nama', key: 'nama' },
+              { header: 'Email', key: 'email' },
+              { header: 'Unit', field: p => this.namaUnit(p.unit_id) }
+            ],
+            this.pegawaiList,
+            `Data_Pegawai_${this.todayIso_()}`,
+            'Daftar Pegawai SIMPEG'
+          );
         },
         loadJabatan(page) { this.jabatanRefPage = page; },
         resetJabatanFilter() { this.jabatanSearch = ''; this.jabatanRefPage = 1; },
@@ -575,23 +559,6 @@
           y = doc.lastAutoTable.finalY + 6;
           doc.autoTable({ startY: y, head: [['Rekomendasi']], body: rekom.map(r => [r]) });
           doc.save(`Analisa_Pelaporan_${this.todayIso_()}.pdf`);
-        },
-
-        // ================= LOOKUP HELPER =================
-        namaPegawai(id) {
-          if (!Array.isArray(this.pegawaiList) || !id) return '-';
-          const p = this.pegawaiList.find(item => String(item.pegawai_id) === String(id));
-          return p ? p.nama : id;
-        },
-        namaUnit(id) {
-          if (!Array.isArray(this.unitList) || !id) return '-';
-          const u = this.unitList.find(item => String(item.unit_id) === String(id));
-          return u ? u.nama_unit : id;
-        },
-        namaJabatan(id) {
-          if (!Array.isArray(this.jabatanList) || !id) return '-';
-          const j = this.jabatanList.find(item => String(item.jabatan_id) === String(id));
-          return j ? j.nama_jabatan : id;
         }
       },
 
