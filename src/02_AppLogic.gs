@@ -410,7 +410,9 @@ function getMyProfileEnriched_(actor) {
 }
 function saveMyProfile_(data, actor) { return CoreLib.saveMyProfile(SPREADSHEET_ID, data, actor, getAllHeaders_(), MASTER_SPREADSHEET_ID); }
 
-function getConfigList_() { return CoreLib.getConfigList(SPREADSHEET_ID, getAllHeaders_()); }
+function getConfigList_() {
+  return { success: true, data: CoreLib.getConfigList(SPREADSHEET_ID, getAllHeaders_()) };
+}
 function saveConfigItem_(data, actor) { return CoreLib.saveConfigItem(SPREADSHEET_ID, data, actor, getAllHeaders_()); }
 
 // ==================== LAUNCHER PROVISIONING ====================
