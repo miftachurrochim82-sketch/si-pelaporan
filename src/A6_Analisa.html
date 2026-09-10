@@ -1,0 +1,256 @@
+<!-- ============================================================
+     A6_Analisa.html — Halaman Analisa & Rekomendasi Pelaporan (SI-PELAPORAN)
+     Port dari SI-KOMPETENSI: label disesuaikan domain pelaporan.
+     Rewrite vs kiriman (N1):
+     N1. Seksi distribusi mensyaratkan total_data > 0 (objek kosong itu
+         truthy — tanpa ini header kartu tampil kosong saat data nol).
+     Backend kawan (N2 di 02): getAnalytics_ kini kirim by_bulan (agregat
+     YYYY-MM) + HONOR filter tahun/bulan dari UI ini. Tanpa N2, kartu
+     "Distribusi per Bulan" selalu kosong & tombol Refresh = pajangan.
+     ============================================================ -->
+<div v-if="currentPage === 'analisa'" class="space-y-6">
+
+  <!-- Header & Control Action Bar -->
+  <div class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs uppercase tracking-wider">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span>Executive Intelligence</span>
+      </div>
+      <h2 class="text-xl font-extrabold text-slate-900 dark:text-white mt-1">Analisa & Rekomendasi Pelaporan</h2>
+      <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Hasil kalkulasi otomatis dan temuan strategis berbasis data pelaporan pegawai terintegrasi.</p>
+    </div>
+
+    <!-- Filter Control & PDF Download Bar -->
+    <div class="flex flex-wrap items-center gap-2.5">
+      <!-- Filter Tahun -->
+      <select v-model="analisaTahun" class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500/50 focus:outline-none">
+        <option value="">Semua Tahun</option>
+        <option v-for="tahun in (tahunList && tahunList.length ? tahunList : [new Date().getFullYear()])" :key="tahun" :value="tahun">{{ tahun }}</option>
+      </select>
+
+      <!-- Filter Bulan -->
+      <select v-model="analisaBulan" class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500/50 focus:outline-none">
+        <option value="">Semua Bulan</option>
+        <option v-for="bulan in bulanList" :key="bulan" :value="bulan">{{ bulan }}</option>
+      </select>
+
+      <!-- Tombol Refresh -->
+      <button @click="loadAnalisa"
+              :disabled="analisaLoading"
+              class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-semibold text-xs transition flex items-center gap-2 disabled:opacity-50">
+        <i class="fa-solid fa-rotate" :class="{ 'animate-spin': analisaLoading }"></i>
+        <span>Refresh</span>
+      </button>
+
+      <!-- Tombol Unduh PDF -->
+      <button v-if="analisaData"
+              @click="downloadAnalisaPDF"
+              class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-xs transition shadow-md shadow-emerald-600/20 flex items-center gap-2">
+        <i class="fa-solid fa-file-pdf"></i>
+        <span>Unduh PDF</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Skeleton Loading State -->
+  <div v-if="analisaLoading" class="py-12 flex flex-col items-center justify-center space-y-3">
+    <div class="relative flex items-center justify-center">
+      <div class="w-10 h-10 rounded-full border-3 border-emerald-200 dark:border-emerald-950 border-t-emerald-600 animate-spin"></div>
+      <i class="fa-solid fa-chart-line text-xs text-emerald-600 dark:text-emerald-400 absolute"></i>
+    </div>
+    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 animate-pulse">Menyusun laporan analisa & kecerdasan data...</p>
+  </div>
+
+  <template v-else>
+
+    <!-- 1. Ringkasan Kartu Statistik KPI (4 Columns) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pelaporan Teranalisa</p>
+          <p class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ analisaData?.total_data ?? 0 }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-book-bookmark"></i>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Pegawai</p>
+          <p class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ (pegawaiList && pegawaiList.length) || 0 }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-users"></i>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Unit Kerja Utama</p>
+          <p class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ (unitList && unitList.length) || 0 }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-building"></i>
+        </div>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Formasi Jabatan</p>
+          <p class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ (jabatanList && jabatanList.length) || 0 }}</p>
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-briefcase"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Ringkasan Eksekutif Callout Card -->
+    <div v-if="analisaData" class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border-l-4 border-l-emerald-500 border border-slate-200/80 dark:border-slate-700/60 shadow-sm space-y-2">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-lightbulb text-amber-500 text-sm"></i>
+        <h3 class="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider">Ringkasan Eksekutif</h3>
+      </div>
+      <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+        {{ analisaData.ringkasan || 'Belum ada ringkasan analisa yang dapat disajikan untuk periode terpilih.' }}
+      </p>
+    </div>
+
+    <!-- 3. Insight Referensi SIMPEG (3 Grid) -->
+    <div v-if="(pegawaiList && pegawaiList.length) || (unitList && unitList.length)" class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-3">
+        <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-magnifying-glass-chart text-emerald-600 dark:text-emerald-400"></i>
+          Insight Struktur Pegawai & Formasi
+        </h3>
+        <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/50">Simpeg Live Data</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Top Unit -->
+        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800">
+          <p class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2.5">Distribusi Terbesar</p>
+          <ul class="space-y-2">
+            <li v-for="(item, idx) in (pegawaiPerUnitTop || []).slice(0, 3)" :key="idx" class="flex justify-between items-center text-xs">
+              <span class="text-slate-700 dark:text-slate-300 font-medium truncate max-w-[160px]">{{ item.nama_unit }}</span>
+              <span class="font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 px-2 py-0.5 rounded-md text-[10px]">{{ item.jumlah }} Pegawai</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Unit Tanpa Pegawai -->
+        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+          <p class="text-xs font-bold text-slate-500 dark:text-slate-400">Status Kebutuhan Personel Unit</p>
+          <div class="mt-2">
+            <p class="text-2xl font-black" :class="unitTanpaPegawai > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'">
+              {{ unitTanpaPegawai }} Unit
+            </p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+              {{ unitTanpaPegawai > 0 ? 'Terdeteksi unit kerja tanpa alokasi pegawai.' : 'Semua unit kerja telah terisi personel.' }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Jabatan Aktif -->
+        <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+          <p class="text-xs font-bold text-slate-500 dark:text-slate-400">Status Jabatan Terisi</p>
+          <div class="mt-2">
+            <p class="text-2xl font-black text-sky-600 dark:text-sky-400">
+              {{ jabatanAktif }} Jabatan
+            </p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Formasi jabatan aktif terdaftar di sistem referensi.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Visualisasi Distribusi (2 Grid) — N1: sembunyi saat data nol -->
+    <div v-if="analisaData && analisaData.total_data > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- Progress Bar Distribusi Jenis -->
+      <div class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm space-y-4">
+        <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-chart-bar text-emerald-600 dark:text-emerald-400"></i>
+          Distribusi per Jenis Laporan
+        </h3>
+        <div class="space-y-3">
+          <div v-for="(jumlah, jenis) in analisaData.by_jenis" :key="jenis" class="space-y-1">
+            <div class="flex justify-between items-center text-xs font-semibold">
+              <span class="capitalize text-slate-700 dark:text-slate-300">{{ jenis }}</span>
+              <span class="text-emerald-600 dark:text-emerald-400 font-bold">{{ jumlah }} Record</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+              <div class="h-full rounded-full bg-emerald-500" :style="{ width: Math.min((jumlah / (analisaData.total_data || 1)) * 100, 100) + '%' }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Bar Distribusi Bulan -->
+      <div class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm space-y-4">
+        <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+          <i class="fa-solid fa-calendar-days text-teal-600 dark:text-teal-400"></i>
+          Distribusi per Bulan
+        </h3>
+        <div class="space-y-3">
+          <div v-for="(jumlah, bulan) in analisaData.by_bulan" :key="bulan" class="space-y-1">
+            <div class="flex justify-between items-center text-xs font-semibold">
+              <span class="capitalize text-slate-700 dark:text-slate-300">{{ bulan }}</span>
+              <span class="text-teal-600 dark:text-teal-400 font-bold">{{ jumlah }} Record</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+              <div class="h-full rounded-full bg-teal-500" :style="{ width: Math.min((jumlah / (analisaData.total_data || 1)) * 100, 100) + '%' }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 5. Temuan Penting (Findings) -->
+    <div v-if="analisaData && analisaData.temuan && analisaData.temuan.length" class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm space-y-3">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+        <h3 class="text-sm font-bold text-slate-800 dark:text-white">Temuan Penting & Evaluasi Data</h3>
+      </div>
+      <div class="space-y-2">
+        <div v-for="(temuan, idx) in analisaData.temuan" :key="idx"
+             :class="[
+               'p-3.5 rounded-2xl border text-xs flex items-start gap-3',
+               temuan.level === 'kritis'
+                 ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300'
+                 : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300'
+             ]">
+          <i :class="temuan.level === 'kritis' ? 'fa-solid fa-circle-xmark text-rose-500' : 'fa-solid fa-circle-exclamation text-amber-500'" class="text-base shrink-0 mt-0.5"></i>
+          <span class="font-medium leading-relaxed">{{ temuan.pesan }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Rekomendasi Tindakan -->
+    <div v-if="analisaData && analisaData.rekomendasi && analisaData.rekomendasi.length" class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm space-y-3">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-list-check text-emerald-600 dark:text-emerald-400"></i>
+        <h3 class="text-sm font-bold text-slate-800 dark:text-white">Rekomendasi Tindakan Pengembangan</h3>
+      </div>
+      <div class="space-y-2.5">
+        <div v-for="(rekom, idx) in analisaData.rekomendasi" :key="idx" class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 flex items-start gap-3">
+          <!-- Priority Badge -->
+          <span :class="[
+            'px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shrink-0 mt-0.5 border',
+            rekom.prioritas === 'tinggi' ? 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/80 dark:text-rose-300 dark:border-rose-900' :
+            rekom.prioritas === 'sedang' ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-900' :
+            'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-900'
+          ]">
+            Prioritas {{ rekom.prioritas }}
+          </span>
+          <p class="text-xs font-medium text-slate-700 dark:text-slate-300 leading-relaxed">{{ rekom.tindakan }}</p>
+        </div>
+      </div>
+    </div>
+
+  </template>
+
+</div>
