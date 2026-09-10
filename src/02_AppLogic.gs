@@ -14,7 +14,7 @@
  * Entry point HTTP GET (Web App UI Entry)
  */
 function doGet(e) {
-  var template = HtmlService.createTemplateFromFile('Index');
+  var template = HtmlService.createTemplateFromFile('index');
   template.sessionToken = '';
   template.user = {};
   template.ticket = (e && e.parameter && e.parameter.ticket) || '';
