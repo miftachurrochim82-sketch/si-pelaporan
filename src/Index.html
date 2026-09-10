@@ -252,6 +252,23 @@
       },
 
       methods: {
+        // ================= SSO REDIRECT =================
+        goToPlatform() {
+          const platformUrl = 'https://script.google.com/macros/s/AKfycbwh_OUVqmxLcuF81FHmPZtT33Wrm8Ce9Da1SQ3hfkSr7gM5P8ofyAlHSgW40mq3eo-PoQ/exec';
+          const back = window.location.href.split('?')[0];
+          const sep = platformUrl.includes('?') ? '&' : '?';
+          const targetUrl = platformUrl + sep + 'redirect=' + encodeURIComponent(back);
+          try {
+            if (window.top && window.top !== window) {
+              window.top.location.href = targetUrl;
+            } else {
+              window.location.href = targetUrl;
+            }
+          } catch (e) {
+            window.open(targetUrl, '_top');
+          }
+        },
+
         // ================= REFERENSI (SWR CACHE v2.4.0) =================
         async loadReferensi(force = false) {
           try {
