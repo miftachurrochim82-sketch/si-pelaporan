@@ -17,6 +17,8 @@ function doGet(e) {
   var template = HtmlService.createTemplateFromFile('Index');
   template.sessionToken = '';
   template.user = {};
+  template.ticket = (e && e.parameter && e.parameter.ticket) || '';
+  template.isSsoEntry = Boolean((e && e.parameter && e.parameter.ticket));
   return template.evaluate()
     .setTitle(APP_TITLE)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')

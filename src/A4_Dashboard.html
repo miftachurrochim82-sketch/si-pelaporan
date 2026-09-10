@@ -172,16 +172,19 @@
     <!-- 3. Visualisasi Grafik Analytics Chart.js -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      <!-- Grafik 1: Bar Chart Pegawai per Unit (Spans 2 Cols) -->
+      <!-- Grafik 1: Bar Chart Struktur Organisasi & Eselon III (Spans 2 Cols) -->
       <div class="p-5 rounded-3xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm lg:col-span-2 flex flex-col justify-between">
         <div class="flex items-center justify-between mb-4">
           <div>
             <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <i class="fa-solid fa-chart-column text-emerald-600 dark:text-emerald-400"></i>
-              Distribusi Pegawai per Unit Kerja (Top 10)
+              <i class="fa-solid fa-sitemap text-emerald-600 dark:text-emerald-400"></i>
+              Distribusi Pegawai per Struktur Organisasi (Eselon III & Divisi)
             </h3>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Jumlah personel terdaftar berdasarkan unit SIMPEG</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Komposisi 6 unit induk: Kepala Satuan, Sekretariat (Subbag), Bidang (Seksi), & JFT</p>
           </div>
+          <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50">
+            6 Divisi Utama
+          </span>
         </div>
         <div class="h-72 w-full relative">
           <canvas id="chartPegawaiUnit"></canvas>

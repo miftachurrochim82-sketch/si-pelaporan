@@ -32,11 +32,84 @@
 
   <!-- 1. FRONTEND CDN SHARED CSS (v2.4.0) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/miftachurrochim82-sketch/frontend-cdn@v2.4.0/frontend/app-common.min.css">
+
+  <!-- Synchronous Initial SSO Ticket Detection -->
+  <script>
+    window.__SSO_TICKET__ = "<?= ticket ?>";
+    window.__IS_SSO_ENTRY__ = "<?= isSsoEntry ?>" === "true";
+  </script>
 </head>
 <body>
   <div id="app" v-cloak>
-    <!-- ===== 1. LAYAR LOGIN SSO ===== -->
-    <app-login v-if="!token"
+    <!-- ===== 1. ANIMATED SSO SPLASH TRANSITION SCREEN (Tampil otomatis saat tiket SSO masuk) ===== -->
+    <div v-if="!token && (isProcessing || isSsoLoading || hasSsoTicket)"
+         class="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-950/70 via-slate-950 to-black text-white selection:bg-emerald-500 selection:text-white">
+      
+      <!-- Glowing background orbs -->
+      <div class="absolute w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
+      <div class="absolute -bottom-20 -right-20 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Main Animated Card -->
+      <div class="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-2xl p-8 rounded-3xl border border-emerald-500/20 shadow-2xl shadow-emerald-950/50 text-center flex flex-col items-center">
+        
+        <!-- Animated Logo with Glowing Rings -->
+        <div class="relative mb-6">
+          <div class="absolute -inset-2 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-600 rounded-3xl blur-md opacity-40 animate-pulse"></div>
+          <div class="relative w-24 h-24 rounded-3xl bg-gradient-to-tr from-slate-900 via-emerald-950 to-slate-900 border border-emerald-500/30 flex items-center justify-center text-4xl shadow-2xl">
+            <img v-if="brand && brand.logoSvg" :src="brand.logoSvg" class="w-16 h-16 object-contain drop-shadow-md transform transition-transform duration-500 hover:scale-110">
+            <i v-else class="fa-solid fa-file-signature text-emerald-400 text-3xl"></i>
+          </div>
+          <!-- Orbiting Spinner Ring -->
+          <div class="absolute -inset-3.5 border-2 border-emerald-500/20 border-t-emerald-400 rounded-full animate-spin"></div>
+        </div>
+
+        <!-- App Identity -->
+        <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2 justify-center">
+          <span>SI-PELAPORAN</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">SSO</span>
+        </h1>
+        <p class="text-xs font-semibold text-emerald-400 uppercase tracking-widest mt-1">Pemerintah Kabupaten Trenggalek</p>
+
+        <!-- Dynamic Status Steps -->
+        <div class="mt-8 w-full space-y-3">
+          <div class="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 flex items-center gap-3 text-left">
+            <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-key text-xs animate-bounce"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-bold text-slate-200 truncate">Menghubungkan ke Portal SSO</p>
+              <p class="text-[11px] text-emerald-400/90 truncate animate-pulse">{{ ssoStatusMessage || 'Memvalidasi tiket keamanan terpadu...' }}</p>
+            </div>
+          </div>
+
+          <!-- Animated Progress Bar -->
+          <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden p-0.5">
+            <div class="bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-300 h-full rounded-full animate-pulse w-full origin-left"></div>
+          </div>
+        </div>
+
+        <!-- Error State Fallback if Ticket Fails -->
+        <div v-if="errorMessage" class="mt-6 p-4 rounded-2xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs w-full text-left">
+          <div class="flex items-center gap-2 font-bold text-rose-200 mb-1">
+            <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+            <span>Validasi Tiket Gagal</span>
+          </div>
+          <p class="text-[11px] text-rose-300/90 mb-3">{{ errorMessage }}</p>
+          <button @click="goToPlatform" class="w-full py-2 px-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2">
+            <i class="fa-solid fa-arrow-left"></i> Kembali ke Portal SI-PLATFORM
+          </button>
+        </div>
+
+        <p v-else class="text-[11px] text-slate-400 mt-6 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+          <span>Autentikasi Terenkripsi Terpadu ASN Trenggalek</span>
+        </p>
+
+      </div>
+    </div>
+
+    <!-- ===== 2. LAYAR LOGIN MANDIRI (Hanya jika dibuka langsung tanpa tiket SSO) ===== -->
+    <app-login v-else-if="!token && !isProcessing && !isSsoLoading && !hasSsoTicket"
                :is-processing="isProcessing"
                :error-message="errorMessage"
                :app-title="appTitle"
@@ -124,6 +197,10 @@
     const SIPelaporanMixin = {
       data() {
         return {
+          // SSO Transition State
+          ssoStatusMessage: 'Memvalidasi tiket Single Sign-On...',
+          isSsoLoading: false,
+
           // Modal Panduan Aplikasi (pengganti menu Tentang)
           showPanduan: false,
 
@@ -179,6 +256,14 @@
       },
 
       computed: {
+        hasSsoTicket() {
+          try {
+            const urlParams = new URLSearchParams(window.location.search);
+            return Boolean(window.__SSO_TICKET__ || urlParams.get('ticket'));
+          } catch(e) {
+            return false;
+          }
+        },
         filteredPegawaiReferensi() {
           const q = String(this.pegawaiSearch || '').toLowerCase().trim();
           if (!q) return this.pegawaiList || [];
@@ -303,6 +388,78 @@
           this.showToast('Dashboard diperbarui');
         },
 
+        // ================= STRUKTUR ORGANISASI & ESELON III =================
+        getPegawaiEselon3Distribution() {
+          const pegawaiList = this.pegawaiList || [];
+          const unitList = this.unitList || [];
+          const jabatanList = this.jabatanList || [];
+
+          const unitMap = {};
+          unitList.forEach(u => { unitMap[String(u.unit_id)] = u; });
+
+          const jabatanMap = {};
+          jabatanList.forEach(j => { jabatanMap[String(j.jabatan_id)] = j; });
+
+          // Inisialisasi 6 Standar Kategori Eselon III / Organisasi
+          const groups = {
+            'Kepala Satuan / Pimpinan': 0,
+            'Sekretariat': 0,
+            'Kelompok Jabatan Fungsional (JFT)': 0,
+            'Bidang Penegakan Perda': 0,
+            'Bidang Ketertiban Umum & Ketenteraman': 0,
+            'Bidang Pemadam Kebakaran & Penyelamatan': 0
+          };
+
+          pegawaiList.forEach(p => {
+            const jab = jabatanMap[String(p.jabatan_id || '')] || {};
+            const unit = unitMap[String(p.unit_id || '')] || {};
+            const namaJab = String(jab.nama_jabatan || '').toLowerCase();
+            const jenisJab = String(jab.jenis_jabatan || p.jenis_jabatan || '').toUpperCase();
+            const namaUnit = String(unit.nama_unit || p.unit_nama || '').toLowerCase();
+
+            // 1. Kepala Satuan / Pimpinan
+            if (namaJab.includes('kepala satuan') || namaJab.includes('kasatpol') || namaJab.includes('kepala dinas') || namaJab.includes('kepala badan') || (namaJab.includes('kepala') && !namaJab.includes('seksi') && !namaJab.includes('subbag') && !namaJab.includes('bidang') && !namaJab.includes('sub'))) {
+              groups['Kepala Satuan / Pimpinan']++;
+              return;
+            }
+
+            // 2. Kelompok Jabatan Fungsional (JFT)
+            if (jenisJab.includes('FUNGSIONAL') || jenisJab.includes('JFT') || namaUnit.includes('fungsional') || namaUnit.includes('jft') || (namaJab.includes('ahli') || namaJab.includes('terampil') || namaJab.includes('pranata') || namaJab.includes('penyuluh') || namaJab.includes('pengawas') || namaJab.includes('auditor') || namaJab.includes('polisi pamong praja') || namaJab.includes('pemadam kebakaran')) && !namaJab.includes('kepala') && !namaJab.includes('subbag') && !namaJab.includes('kasi')) {
+              groups['Kelompok Jabatan Fungsional (JFT)']++;
+              return;
+            }
+
+            // 3. Sekretariat (termasuk Subbag: Umum, Keuangan, Kepegawaian, Perencanaan)
+            if (namaUnit.includes('sekretariat') || namaUnit.includes('subbag') || namaUnit.includes('sub bagian') || namaUnit.includes('keuangan') || namaUnit.includes('umum') || namaUnit.includes('kepegawaian') || namaUnit.includes('perencanaan')) {
+              groups['Sekretariat']++;
+              return;
+            }
+
+            // 4. Bidang I: Penegakan Perda & Perkada (dan Seksi di dalamnya)
+            if (namaUnit.includes('penegakan') || namaUnit.includes('perda') || namaUnit.includes('perundang') || namaUnit.includes('penyelidikan') || namaUnit.includes('penindakan') || namaUnit.includes('pembinaan dan pengawasan')) {
+              groups['Bidang Penegakan Perda']++;
+              return;
+            }
+
+            // 5. Bidang II: Ketertiban Umum & Ketenteraman Masyarakat (dan Seksi di dalamnya)
+            if (namaUnit.includes('ketertiban') || namaUnit.includes('trantib') || namaUnit.includes('tibum') || namaUnit.includes('operasi') || namaUnit.includes('pengendalian') || namaUnit.includes('pengamanan') || namaUnit.includes('masyarakat')) {
+              groups['Bidang Ketertiban Umum & Ketenteraman']++;
+              return;
+            }
+
+            // 6. Bidang III: Pemadam Kebakaran & Penyelamatan (dan Seksi di dalamnya)
+            if (namaUnit.includes('damkar') || namaUnit.includes('pemadam') || namaUnit.includes('kebakaran') || namaUnit.includes('penyelamatan') || namaUnit.includes('pencegahan') || namaUnit.includes('sarana prasarana')) {
+              groups['Bidang Pemadam Kebakaran & Penyelamatan']++;
+              return;
+            }
+
+            // Fallback ke Kelompok JFT
+            groups['Kelompok Jabatan Fungsional (JFT)']++;
+          });
+
+          return Object.keys(groups).map(k => ({ nama: k, jumlah: groups[k] }));
+        },
+
         async renderDashboardCharts() {
           const hasChart = await this.ensureChartLibrary();
           if (!hasChart) return;
@@ -316,24 +473,32 @@
             const ctx1 = document.getElementById('chartPegawaiUnit');
             if (ctx1) {
               if (this._chartPegawaiUnit) this._chartPegawaiUnit.destroy();
-              const counts = {};
-              (this.pegawaiList || []).forEach(p => {
-                const uid = String(p.unit_id || 'tanpa_unit');
-                counts[uid] = (counts[uid] || 0) + 1;
-              });
-              const top = Object.keys(counts)
-                .map(uid => ({ nama: uid === 'tanpa_unit' ? '(Tanpa Unit)' : this.namaUnit(uid), jumlah: counts[uid] }))
-                .sort((a, b) => b.jumlah - a.jumlah)
-                .slice(0, 10);
+              const eselon3Data = this.getPegawaiEselon3Distribution();
+
+              // 6 Palet Warna Khusus untuk 6 Divisi Eselon III
+              const divisionColors = [
+                'rgba(99, 102, 241, 0.85)',  // Kepala Satuan (Indigo)
+                'rgba(16, 185, 129, 0.85)',  // Sekretariat (Emerald)
+                'rgba(245, 158, 11, 0.85)',  // Kelompok JFT (Amber)
+                'rgba(14, 165, 233, 0.85)',  // Bidang I (Sky)
+                'rgba(168, 85, 247, 0.85)',  // Bidang II (Purple)
+                'rgba(244, 63, 94, 0.85)'    // Bidang III (Rose)
+              ];
+
+              const divisionBorders = [
+                '#6366f1', '#10b981', '#f59e0b', '#0ea5e9', '#a855f7', '#f43f5e'
+              ];
 
               this._chartPegawaiUnit = new Chart(ctx1, {
                 type: 'bar',
                 data: {
-                  labels: top.map(t => t.nama),
+                  labels: eselon3Data.map(t => t.nama),
                   datasets: [{
-                    label: 'Jumlah Pegawai',
-                    data: top.map(t => t.jumlah),
-                    backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                    label: 'Jumlah Personel',
+                    data: eselon3Data.map(t => t.jumlah),
+                    backgroundColor: eselon3Data.map((_, idx) => divisionColors[idx % divisionColors.length]),
+                    borderColor: eselon3Data.map((_, idx) => divisionBorders[idx % divisionBorders.length]),
+                    borderWidth: 1.5,
                     borderRadius: 8
                   }]
                 },
@@ -341,10 +506,33 @@
                   responsive: true,
                   maintainAspectRatio: false,
                   scales: {
-                    x: { ticks: { color: textColor, font: { size: 10 } }, grid: { display: false } },
+                    x: {
+                      ticks: {
+                        color: textColor,
+                        font: { size: 10, weight: '500' },
+                        callback: function(val, index) {
+                          const label = eselon3Data[index] ? eselon3Data[index].nama : '';
+                          return label.length > 22 ? label.slice(0, 20) + '...' : label;
+                        }
+                      },
+                      grid: { display: false }
+                    },
                     y: { ticks: { color: textColor, precision: 0 }, grid: { color: gridColor } }
                   },
-                  plugins: { legend: { display: false } }
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        title: function(items) {
+                          const idx = items[0].dataIndex;
+                          return eselon3Data[idx] ? eselon3Data[idx].nama : '';
+                        },
+                        label: function(item) {
+                          return ` Jumlah Personel: ${item.formattedValue} orang`;
+                        }
+                      }
+                    }
+                  }
                 }
               });
             }
@@ -597,6 +785,23 @@
         this.tahunList = [now, now - 1, now - 2, now - 3, now - 4];
         this.bulanList = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
           'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+      },
+
+      mounted() {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const t = urlParams.get('ticket') || window.__SSO_TICKET__ || '';
+          if (t) {
+            this.isSsoLoading = true;
+            this.ssoStatusMessage = 'Memvalidasi tiket Single Sign-On...';
+            setTimeout(() => {
+              if (!this.token) this.ssoStatusMessage = 'Menyinkronkan profil pegawai & hak akses...';
+            }, 800);
+            setTimeout(() => {
+              if (!this.token) this.ssoStatusMessage = 'Mempersiapkan dashboard SI-PELAPORAN...';
+            }, 1600);
+          }
+        } catch (e) {}
       }
     };
 
