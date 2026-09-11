@@ -154,16 +154,7 @@
         <main class="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-6">
 
           <!-- Partial Halaman A4: Dashboard -->
-          <?!= include('A4_Dashboard'); ?>
-
-          <!-- Partial Halaman A5: Pelaporan -->
-          <?!= include('A5_Pelaporan'); ?>
-
-          <!-- Partial Halaman A6: Analisa -->
-          <?!= include('A6_Analisa'); ?>
-
-          <!-- Partial Halaman A8: Master Data (Referensi SIMPEG) -->
-          <?!= include('A8_MasterData'); ?>
+          <?!= include('V_Layout'); ?>
 
           <!-- Modul Mandiri CDN: Profil SIMPEG -->
           <app-profile v-if="currentPage === 'profil'"></app-profile>
