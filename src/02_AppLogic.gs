@@ -14,7 +14,12 @@
  * Entry point HTTP GET (Web App UI Entry)
  */
 function doGet(e) {
-  var template = HtmlService.createTemplateFromFile('index');
+  var template;
+  try {
+    template = HtmlService.createTemplateFromFile('Index');
+  } catch (err) {
+    template = HtmlService.createTemplateFromFile('index');
+  }
   template.sessionToken = '';
   template.user = {};
   template.ticket = (e && e.parameter && e.parameter.ticket) || '';
@@ -43,7 +48,11 @@ function doPost(e) {
 }
 
 function include(filename) {
-  return HtmlService.createTemplateFromFile(filename).evaluate().getContent();
+  try {
+    return HtmlService.createTemplateFromFile(filename).evaluate().getContent();
+  } catch (err) {
+    return HtmlService.createTemplateFromFile(filename.toLowerCase()).evaluate().getContent();
+  }
 }
 
 /**
