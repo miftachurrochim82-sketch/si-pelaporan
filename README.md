@@ -1,96 +1,65 @@
 # SI-PELAPORAN — Pemkab Trenggalek
-### Sistem Informasi Pelaporan Pegawai Terintegrasi SIMPEG
+### Sistem Informasi Pelaporan Kinerja & Aktivitas ASN
 
-Aplikasi web modular berbasis **Google Apps Script (GAS)**, **Vue 3**, dan **Tailwind CSS** yang terintegrasi langsung dengan **Global Core Foundation v2.0** dan **Frontend Shared CDN** Pemerintah Kabupaten Trenggalek.
+Aplikasi web modern berbasis **Google Apps Script (GAS)**, **Vue 3**, dan **Tailwind CSS** untuk pelaporan kinerja berkala, monitoring target tugas, verifikasi laporan staf, dan analisis capaian unit kerja di lingkungan Pemerintah Kabupaten Trenggalek.
 
 ---
 
-## 🏛️ Identitas Aplikasi Google Apps Script
+## 🏛️ Identitas Aplikasi
 
 | Properti | Nilai | Keterangan |
 |---|---|---|
-| **App Code** | `SIPELAPORAN` | Kode identitas aplikasi di ekosistem Pemkab Trenggalek |
-| **Backend Library** | `CoreLib` (`1GmeYflfMpRa1iTVgFHRD6K1DMoxc9OoKqpuucPJXgNZ9XBK06O7wgDkO`) | Global Core Foundation v2.0 |
-| **Frontend CDN** | `frontend-cdn@v2.4.0` | Shared UI Components, Modules, High-Performance Core & SWR Cache |
-| **Runtime** | `V8` | Modern JavaScript Engine |
+| **App Code** | `SIPELAPORAN` | Kode identitas aplikasi |
+| **Integrasi SSO** | `SI-PLATFORM` | Tiket SSO otomatis & validasi token terpusat |
+| **Frontend Framework** | `Vue 3 + Tailwind CSS` | Single Page Application (SPA) responsif |
+| **Shared CDN** | `frontend-cdn@main` | Komponen Navigasi, Sidebar, & UI Terpadu |
+| **Runtime** | `V8 (GAS)` | Modern JavaScript ES6+ Engine |
 | **TimeZone** | `Asia/Jakarta` | WIB (Waktu Indonesia Barat) |
-
-### OAuth Scopes yang Digunakan:
-- `https://www.googleapis.com/auth/spreadsheets` (Akses Google Sheets DB)
-- `https://www.googleapis.com/auth/drive` (Folder Evidence & Backup)
-- `https://www.googleapis.com/auth/script.storage` (Script Properties & Sesi)
-- `https://www.googleapis.com/auth/script.external_request` (SSO SI-Platform HTTP)
-- `https://www.googleapis.com/auth/userinfo.email` & `openid` (Identitas Google)
 
 ---
 
-## 📦 Struktur Folder Repository
+## 📦 Struktur File Sumber (`src/`)
 
 ```text
 si-pelaporan/
-│
-├── 🤖 .github/
-│   └── workflows/
-│       └── deploy-gas.yml          # Skrip CI/CD otomatis deploy ke GAS via Google Clasp
-│
-├── 📁 src/                          # KODE SUMBER APLIKASI WEB APPS SCRIPT
-│   ├── appsscript.json             # Manifest GAS, V8 engine, scopes, & library CoreLib
-│   ├── 01_ConfigAndBridge.gs       # Bridge helper, schema header, & app config
-│   ├── 02_AppLogic.gs              # Entrypoint doGet, doPost, pelaporan handlers, analytics
-│   ├── 03_SeedData.gs              # Seeder data pelaporan demo
-│   ├── 99_TestSuite.gs             # Automated diagnostic & regression test suite
-│   ├── A4_Dashboard.html           # Partial View: Dashboard & KPI Analytics
-│   ├── A5_Pelaporan.html           # Partial View: Manajemen Pelaporan & Verifikasi
-│   ├── A6_Analisa.html             # Partial View: Analisa & Rekomendasi Pelaporan
-│   ├── A8_MasterData.html          # Partial View: Master Data Referensi SIMPEG
-│   └── Index.html                  # Template View Utama AppCore Vue 3
-│
-├── .clasp.json                     # Konfigurasi Clasp (target rootDir: "src")
-├── .gitignore                      # Mengabaikan node_modules & credential
-├── package.json                    # NPM scripts (push, pull, deploy, status)
-└── README.md                       # Dokumentasi lengkap & panduan penggunaan
+├── 🤖 .github/workflows/deploy-gas.yml  # Auto deploy ke GAS via Clasp & Actions
+├── 📁 src/
+│   ├── appsscript.json                 # Manifest GAS & OAuth Scopes
+│   ├── 01_ConfigAndBridge.gs           # Konfigurasi konstanta, bridge CoreLib & skema sheet
+│   ├── 02_AppLogic.gs                  # Backend routing, CRUD pelaporan, verifikasi & dashboard
+│   ├── 03_SeedData.gs                  # Seeder data pelaporan dummy
+│   ├── 99_TestSuite.gs                 # Unit & integration test suite
+│   ├── A4_Dashboard.html               # Visualisasi KPI, grafik realisasi kerja & ringkasan
+│   ├── A5_Pelaporan.html               # Input & riwayat pelaporan kinerja pegawai
+│   ├── A6_Analisa.html                 # Analisis capaian target kerja tahunan/bulanan
+│   ├── A8_MasterData.html              # Master kategori laporan & referensi SIMPEG
+│   └── Index.html                      # Layout SPA Vue 3 dengan SSO Handshake
+├── .clasp.json                         # Clasp config
+└── README.md                           # Dokumentasi teknis
 ```
 
 ---
 
 ## 📋 Fitur Utama
 
-- **Single Sign-On (SSO)**: Autentikasi terpusat via SI-Platform Pemkab Trenggalek tanpa password terpisah.
-- **Dashboard Eksekutif**: Metrik KPI, diagram Chart.js (Pegawai per Unit, Status Jabatan), dan 5 laporan terbaru.
-- **Manajemen Pelaporan (CRUD)**: Pembuatan laporan kerja (rutin, insidental, khusus, pengawasan) dan proteksi kepemilikan data.
-- **Verifikasi Berjenjang**: Fitur verifikasi khusus Admin/Verifikator (`Disetujui`, `Perlu Revisi`, `Ditolak`) dengan catatan evaluasi.
-- **Analisa & Rekomendasi**: Ringkasan eksekutif otomatis, distribusi status & jenis, temuan sistem, serta ekspor PDF.
-- **Master Data SIMPEG**: Viewer data referensi read-only (Pegawai, Jabatan, Unit Kerja) dengan ekspor Excel dan PDF.
-- **Profil Mandiri & Pengaturan**: Modul edit kontak pegawai dan konfigurasi sistem (Admin Only).
-
----
-
-## 🛠️ Konfigurasi Backend (`Script Properties`)
-
-Tambahkan properti berikut pada Google Apps Script project:
-
-| Key | Deskripsi | Contoh Nilai |
-|---|---|---|
-| `APP_CODE` | Kode unik aplikasi | `SIPELAPORAN` |
-| `SPREADSHEET_ID` | ID Google Sheet database aplikasi | `1a2b3c...` |
-| `MASTER_SPREADSHEET_ID` | ID Google Sheet SIMPEG pusat (read-only) | `1x2y3z...` |
-| `PLATFORM_API_URL` | URL Web App SI-Platform SSO | `https://script.google.com/macros/s/.../exec` |
+1. **Single Sign-On (SSO) Terpadu**:
+   - Login instan via SI-PLATFORM tanpa perlu memasukkan username/password ulang.
+2. **Manajemen Laporan Kinerja**:
+   - Input aktivitas harian/bulanan, upload dokumen bukti dukung, dan status target.
+3. **Verifikasi Atasan Langsung**:
+   - Alur persetujuan laporan oleh pimpinan/atasan unit kerja dengan catatan evaluasi.
+4. **Dashboard & Analitik Capaian**:
+   - Grafik agregasi capaian per unit kerja dan ekspor rekapitulasi data.
 
 ---
 
 ## 🚀 Setup & Deployment
 
-1. Buka Apps Script Editor di Google Workspace.
-2. Hubungkan Library `CoreLib` (Script ID: `1GmeYflfMpRa1iTVgFHRD6K1DMoxc9OoKqpuucPJXgNZ9XBK06O7wgDkO`).
-3. Jalankan fungsi `setupApp()` di file `02_AppLogic.gs` untuk inisialisasi sheet & konfigurasi awal.
-4. Jalankan `runCoreTests()` di file `99_TestSuite.gs` untuk memverifikasi fungsionalitas database dan autentikasi.
-5. Deploy sebagai **Web App** (Execute as: *User accessing the web app* / *Me*, Access: *Anyone*).
-
----
-
-## 🔄 CI/CD Deployment Otomatis (GitHub Actions & Clasp)
-
-Setiap perubahan di folder `src/` yang di-push ke branch `main` akan otomatis di-deploy ke project Google Apps Script via GitHub Actions (`.github/workflows/deploy-gas.yml`).
+1. Buka Apps Script Editor untuk project `SI-PELAPORAN`.
+2. Jalankan fungsi `seedData()` di `03_SeedData.gs` untuk menginisialisasi sheet data awal.
+3. Jalankan `runTestSuite()` di `99_TestSuite.gs` untuk memastikan seluruh fungsi valid.
+4. Deploy sebagai **Web App** (*Execute as: Me, Access: Anyone*).
+5. Daftarkan URL Web App ke dalam tabel `applications` di database **SI-PLATFORM**.
 
 ---
 
