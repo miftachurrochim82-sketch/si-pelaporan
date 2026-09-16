@@ -56,61 +56,33 @@
     <!-- 1. Kartu Statistik Utama (4 Column KPI) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-      <!-- Card 1: Total Pelaporan -->
-      <div class="p-5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between group">
-        <div>
-          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Pelaporan</p>
-          <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{{ dashboardData?.total_pelaporan ?? 0 }}</h3>
-          <span class="inline-flex items-center text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-2 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/40">
-            <i class="fa-solid fa-file-lines mr-1"></i> Laporan Masuk
-          </span>
-        </div>
-        <div class="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
-          <i class="fa-solid fa-file-circle-check"></i>
-        </div>
-      </div>
+      <!-- Card 1: Total Pelaporan (adopsi app-stat-card) -->
+      <app-stat-card title="Total Pelaporan"
+                     :value="dashboardData?.total_pelaporan ?? 0"
+                     icon="fa-solid fa-file-circle-check"
+                     color="emerald"
+                     subtext="Laporan Masuk"></app-stat-card>
 
-      <!-- Card 2: Total Pegawai -->
-      <div class="p-5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between group">
-        <div>
-          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Pegawai Terdaftar</p>
-          <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{{ dashboardData?.total_pegawai ?? (pegawaiList && pegawaiList.length) ?? 0 }}</h3>
-          <span class="inline-flex items-center text-[10px] font-bold text-sky-600 dark:text-sky-400 mt-2 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-full border border-sky-200/60 dark:border-sky-800/40">
-            <i class="fa-solid fa-user-check mr-1"></i> SIMPEG Active
-          </span>
-        </div>
-        <div class="w-12 h-12 rounded-2xl bg-sky-100 dark:bg-sky-950/80 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
-          <i class="fa-solid fa-users"></i>
-        </div>
-      </div>
+      <!-- Card 2: Total Pegawai (adopsi app-stat-card) -->
+      <app-stat-card title="Pegawai Terdaftar"
+                     :value="dashboardData?.total_pegawai ?? (pegawaiList && pegawaiList.length) ?? 0"
+                     icon="fa-solid fa-users"
+                     color="sky"
+                     subtext="SIMPEG Active"></app-stat-card>
 
-      <!-- Card 3: Unit Kerja -->
-      <div class="p-5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between group">
-        <div>
-          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Unit Kerja Utama</p>
-          <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{{ dashboardData?.total_unit ?? (unitList && unitList.length) ?? 0 }}</h3>
-          <span class="inline-flex items-center text-[10px] font-bold text-purple-600 dark:text-purple-400 mt-2 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded-full border border-purple-200/60 dark:border-purple-800/40">
-            <i class="fa-solid fa-sitemap mr-1"></i> Terstruktur
-          </span>
-        </div>
-        <div class="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
-          <i class="fa-solid fa-building"></i>
-        </div>
-      </div>
+      <!-- Card 3: Unit Kerja (adopsi app-stat-card) -->
+      <app-stat-card title="Unit Kerja Utama"
+                     :value="dashboardData?.total_unit ?? (unitList && unitList.length) ?? 0"
+                     icon="fa-solid fa-building"
+                     color="purple"
+                     subtext="Terstruktur"></app-stat-card>
 
-      <!-- Card 4: Jabatan -->
-      <div class="p-5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-between group">
-        <div>
-          <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Jabatan</p>
-          <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{{ dashboardData?.total_jabatan ?? (jabatanList && jabatanList.length) ?? 0 }}</h3>
-          <span class="inline-flex items-center text-[10px] font-bold text-amber-600 dark:text-amber-400 mt-2 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/40">
-            <i class="fa-solid fa-briefcase mr-1"></i> Formasi Active
-          </span>
-        </div>
-        <div class="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/80 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl shrink-0 group-hover:scale-110 transition-transform">
-          <i class="fa-solid fa-id-card"></i>
-        </div>
-      </div>
+      <!-- Card 4: Jabatan (adopsi app-stat-card) -->
+      <app-stat-card title="Total Jabatan"
+                     :value="dashboardData?.total_jabatan ?? (jabatanList && jabatanList.length) ?? 0"
+                     icon="fa-solid fa-id-card"
+                     color="amber"
+                     subtext="Formasi Active"></app-stat-card>
 
     </div>
 
@@ -184,9 +156,7 @@
             </h3>
             <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Komposisi 6 unit induk: Kepala Satuan, Sekretariat (Subbag), Bidang (Seksi), & JFT</p>
           </div>
-          <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50">
-            6 Divisi Utama
-          </span>
+          <app-badge status="emerald" label="6 Divisi Utama"></app-badge>
         </div>
         <div class="h-72 w-full relative">
           <canvas id="chartPegawaiUnit"></canvas>
@@ -241,18 +211,8 @@
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-              {{ item.jenis_laporan || 'umum' }}
-            </span>
-            <span :class="[
-              'px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border',
-              item.status === 'disetujui' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
-              : item.status === 'ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
-              : item.status === 'revisi' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
-              : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-            ]">
-              {{ item.status || 'menunggu' }}
-            </span>
+            <app-badge status="netral" :label="item.jenis_laporan || 'umum'"></app-badge>
+            <app-badge :status="item.status || 'menunggu'"></app-badge>
           </div>
         </div>
       </div>
@@ -689,15 +649,7 @@
       <!-- Badge status read-only saat edit -->
       <div v-if="pelaporanForm.id" class="flex items-center gap-2">
         <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Status:</span>
-        <span :class="[
-          'px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border',
-          pelaporanForm.status === 'disetujui' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
-          : pelaporanForm.status === 'ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
-          : pelaporanForm.status === 'revisi' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
-          : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-        ]">
-          {{ pelaporanForm.status || 'menunggu' }}
-        </span>
+        <app-badge size="md" :status="pelaporanForm.status || 'menunggu'"></app-badge>
       </div>
 
       <!-- Grid 2 kolom: Pegawai & Tanggal -->
@@ -1330,4 +1282,3 @@
   </div>
 
 </div>
-
