@@ -13,7 +13,8 @@ Aplikasi web modern berbasis **Google Apps Script (GAS)**, **Vue 3**, dan **Tail
 | **Arsitektur Tampilan** | `2-File HTML System (Single Include)` | `Index.html` (Shell & Bootloader) + `V_Layout.html` (Seluruh Modul Tampilan) |
 | **Integrasi SSO** | `SI-PLATFORM` | Tiket SSO otomatis & validasi token terpusat |
 | **Frontend Framework** | `Vue 3 + Tailwind CSS` | Single Page Application (SPA) responsif |
-| **Shared CDN** | `frontend-cdn@main` | Komponen Navigasi, Sidebar, Pustaka Profil & Settings |
+| **Shared CDN** | `frontend-cdn@v2.6.5` | Komponen Navigasi, Sidebar, Pustaka Profil & Settings. **Wajib tag versi** — `@main` dilarang (cache jsDelivr 12 jam) |
+| **CoreLib** (GAS library) | pin `"6"`, tanpa `developmentMode` | Auth SSO, role guard, CRUD generik. Terkunci sungguhan — **menunggu bump** ke versi tersimpan v2.2.3 (fix keamanan `levelOf_`) |
 | **Runtime** | `V8 (GAS)` | Modern JavaScript ES6+ Engine |
 | **TimeZone** | `Asia/Jakarta` | WIB (Waktu Indonesia Barat) |
 
@@ -72,6 +73,7 @@ si-pelaporan/
 3. Tambahkan 2 Secret:
    * `CLASPRC_JSON`: Isi konfigurasi autentikasi Clasp.
    * `CLASP_SCRIPT_ID`: ID Script Google Apps Script SI-PELAPORAN Anda.
+   * `GAS_SCRIPT_ID`: ID Script tujuan (dipakai langkah verifikasi workflow).
 4. Setiap ada pembaruan di branch `main`, GitHub Actions akan otomatis melakukan `clasp push --force`.
 
 ### Opsi B: Salin Manual ke Editor Google Apps Script
@@ -81,3 +83,9 @@ si-pelaporan/
    * 2 Berkas HTML (`.html`): `Index.html` dan `V_Layout.html`.
 3. Salin kode dari repositori GitHub ke editor Apps Script.
 4. Klik **Deploy** ➔ **New deployment** ➔ Pilih tipe **Web app** ➔ Akses: **Anyone**.
+
+---
+
+## 📚 Dokumentasi Master
+
+Dokumentasi arsitektur, changelog CoreLib, dan snippet CDN standar berada di repo [`frontend-cdn`](https://github.com/miftachurrochim82-sketch/frontend-cdn): `backend/00_MIGRATION_v2.md` (master CoreLib), `ECOSYSTEM_GUIDE.md`, `frontend/CDN_SNIPPET.md`.
